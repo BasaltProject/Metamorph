@@ -241,3 +241,46 @@ TEST_CASE("an item frame and a turtle keep their positions as block positions") 
     CHECK(fixedTurtle->getBoolean("has_egg"));
     CHECK_FALSE(fixedTurtle->contains("TravelPosX"));
 }
+
+TEST_CASE("an item saved before components keeps its enchantments, name and damage") {
+    NbtCompound enchantment;
+    enchantment.putString("id", "minecraft:sharpness");
+    enchantment.putShort("lvl", 3);
+    NbtList enchantments{NbtType::Compound, {}};
+    enchantments.push(NbtTag::ofCompound(enchantment));
+    NbtCompound display;
+    display.putString("Name", R"({"text":"Blade"})");
+    NbtCompound tag;
+    tag.set("Enchantments", NbtTag::ofList(enchantments));
+    tag.set("display", NbtTag::ofCompound(display));
+    tag.putInt("Damage", 7);
+    NbtCompound sword;
+    sword.putString("id", "minecraft:diamond_sword");
+    sword.putByte("Count", 1);
+    sword.set("tag", NbtTag::ofCompound(tag));
+    NbtList items{NbtType::Compound, {}};
+    items.push(NbtTag::ofCompound(sword));
+    NbtCompound entity;
+    entity.putString("id", "minecraft:chest_minecart");
+    entity.set("Items", NbtTag::ofList(items));
+    NbtList entities{NbtType::Compound, {}};
+    entities.push(NbtTag::ofCompound(entity));
+    NbtCompound file;
+    file.set("Entities", NbtTag::ofList(entities));
+    basalt::metamorph::datafix::upgrade(Domain::Entities, file, 3700);
+
+    const NbtCompound* fixed = file.getList("Entities")->elements()[0].get<NbtCompound>();
+    REQUIRE(fixed != nullptr);
+    const NbtList* fixedItems = fixed->getList("Items");
+    REQUIRE(fixedItems != nullptr);
+    const NbtCompound* stack = fixedItems->elements()[0].get<NbtCompound>();
+    REQUIRE(stack != nullptr);
+    CHECK(stack->getInt("count") == 1);
+    CHECK_FALSE(stack->contains("Count"));
+    const NbtCompound* components = stack->getCompound("components");
+    REQUIRE(components != nullptr);
+    CHECK(components->getInt("minecraft:damage") == 7);
+    REQUIRE(components->getCompound("minecraft:enchantments") != nullptr);
+    CHECK(components->getCompound("minecraft:enchantments")->getInt("minecraft:sharpness") == 3);
+    CHECK(components->contains("minecraft:custom_name"));
+}

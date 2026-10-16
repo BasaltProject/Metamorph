@@ -148,6 +148,26 @@ void blockStateFieldNames(NbtCompound& chunk, const Context&) {
     });
 }
 
+void blockStateFieldNamesOf(NbtCompound& holder, std::initializer_list<std::string_view> keys) {
+    for (const std::string_view key : keys) {
+        NbtTag* held = holder.find(key);
+        if (NbtCompound* state = held == nullptr ? nullptr : held->get<NbtCompound>(); state != nullptr) {
+            rename(*state, "Name", "id");
+            rename(*state, "Properties", "properties");
+        }
+    }
+}
+
+// parity: `BlockStateFieldNamesFix`, over the block states that entities carry.
+void blockStateFieldNamesOfEntity(NbtCompound& entity, const Context&) {
+    blockStateFieldNamesOf(entity, {"inBlockState", "carriedBlockState", "BlockState", "DisplayState", "block_state"});
+}
+
+// parity: `BlockStateFieldNamesFix`, over the block state of a moving piston.
+void blockStateFieldNamesOfPiston(NbtCompound& blockEntity, const Context&) {
+    blockStateFieldNamesOf(blockEntity, {"blockState"});
+}
+
 // parity: `SignsOpFlagFix`.
 void allowSignOpFeatures(NbtCompound& blockEntity, const Context&) {
     blockEntity.putBoolean("allow_op_features", true);
@@ -259,6 +279,8 @@ void addFixesFrom4996(std::vector<Fix>& fixes) {
                                   {5002, Target::BlockEntity, "minecraft:sign", allowSignOpFeatures},
                                   {5002, Target::BlockEntity, "minecraft:hanging_sign", allowSignOpFeatures},
                                   {5006, Target::Chunk, {}, blockStateFieldNames},
+                                  {5006, Target::Entity, {}, blockStateFieldNamesOfEntity},
+                                  {5006, Target::BlockEntity, "minecraft:piston", blockStateFieldNamesOfPiston},
                                   {5007, Target::Components, {}, splitSwingAnimation},
                                   {5008, Target::ItemStack, {}, explorerMapItem},
                                   {5008, Target::Components, {}, removeMapColor},

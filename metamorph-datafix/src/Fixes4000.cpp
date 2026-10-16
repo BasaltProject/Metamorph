@@ -74,6 +74,24 @@ void attributeIdPrefix(NbtCompound& components, const Context&) {
     }
 }
 
+// parity: `AttributeIdPrefixFix`, over the attributes of an entity or a player.
+void attributeIdPrefixOfEntity(NbtCompound& entity, const Context&) {
+    static constexpr std::array<std::string_view, 4> kPrefixes{"minecraft:generic.", "minecraft:horse.",
+                                                               "minecraft:player.", "minecraft:zombie."};
+    forEachCompound(entity, "attributes", [](NbtCompound& attribute) {
+        if (!attribute.contains("id")) {
+            return;
+        }
+        const std::string id = namespaced(attribute.getString("id"));
+        for (const std::string_view prefix : kPrefixes) {
+            if (id.starts_with(prefix)) {
+                attribute.putString("id", "minecraft:" + id.substr(prefix.size()));
+                break;
+            }
+        }
+    });
+}
+
 // parity: `FoodToConsumableFix`.
 void foodToConsumable(NbtCompound& components, const Context&) {
     NbtTag* held = components.find("minecraft:food");
@@ -258,6 +276,7 @@ void addFixesFrom4000(std::vector<Fix>& fixes) {
                                   {4054, Target::BlockEntity, "minecraft:banner", ominousBannerBlockEntity},
                                   {4054, Target::ItemStack, {}, ominousBannerItem},
                                   {4055, Target::Components, {}, attributeIdPrefix},
+                                  {4055, Target::Entity, {}, attributeIdPrefixOfEntity},
                                   {4059, Target::Components, {}, foodToConsumable},
                                   {4064, Target::Components, {}, fireResistantToDamageResistant},
                                   {4068, Target::Components, {}, lockComponentPredicate},

@@ -21,36 +21,45 @@ constexpr int kMaxDepth = 48;
     return id != nullptr && id->get<std::string>() != nullptr && numeric(tag.find("count"));
 }
 
-void walk(NbtTag& tag, const Edit& edit, int depth);
+[[nodiscard]] bool isLegacyStack(const NbtCompound& tag) {
+    const NbtTag* id = tag.find("id");
+    return id != nullptr && id->get<std::string>() != nullptr && numeric(tag.find("Count"));
+}
 
-void walkCompound(NbtCompound& compound, const Edit& edit, int depth) {
+using Matches = bool (*)(const NbtCompound&);
+
+void walk(NbtTag& tag, const Edit& edit, int depth, Matches matches);
+
+void walkCompound(NbtCompound& compound, const Edit& edit, int depth, Matches matches) {
     if (depth > kMaxDepth) {
         return;
     }
-    if (isStack(compound)) {
+    if (matches(compound)) {
         edit(compound);
     }
     const std::vector<std::string> names = compound.names();
     for (const std::string& name : names) {
         if (NbtTag* child = compound.find(name); child != nullptr) {
-            walk(*child, edit, depth + 1);
+            walk(*child, edit, depth + 1, matches);
         }
     }
 }
 
-void walk(NbtTag& tag, const Edit& edit, int depth) {
+void walk(NbtTag& tag, const Edit& edit, int depth, Matches matches) {
     if (NbtCompound* compound = tag.get<NbtCompound>(); compound != nullptr) {
-        walkCompound(*compound, edit, depth);
+        walkCompound(*compound, edit, depth, matches);
     } else if (NbtList* list = tag.get<NbtList>(); list != nullptr) {
         for (std::size_t i = 0; i < list->size(); ++i) {
-            walk((*list)[i], edit, depth + 1);
+            walk((*list)[i], edit, depth + 1, matches);
         }
     }
 }
 
 } // namespace
 
-void forEachStack(NbtCompound& root, const Edit& edit) { walkCompound(root, edit, 0); }
+void forEachStack(NbtCompound& root, const Edit& edit) { walkCompound(root, edit, 0, &isStack); }
+
+void forEachLegacyStack(NbtCompound& root, const Edit& edit) { walkCompound(root, edit, 0, &isLegacyStack); }
 
 void forEachComponents(NbtCompound& root, const Edit& edit) {
     forEachStack(root, [&edit](NbtCompound& stack) {

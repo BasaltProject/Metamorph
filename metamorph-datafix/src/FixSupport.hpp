@@ -11,7 +11,7 @@
 namespace basalt::metamorph::datafix {
 
 /// `Root` runs on the whole tree whatever the domain, for fixes that find their own places.
-enum class Target : std::uint8_t { Chunk, BlockEntity, ItemStack, Components, Palette, Root, Entity };
+enum class Target : std::uint8_t { Chunk, BlockEntity, ItemStack, LegacyStack, Components, Palette, Root, Entity };
 
 struct Fix {
     std::int32_t version = 0;
@@ -37,6 +37,8 @@ void forEachCompound(wire::nbt::NbtCompound& root, std::string_view listKey,
 [[nodiscard]] std::string_view plainTranslationKey(const wire::nbt::NbtTag* component);
 
 void addEntityFixes(std::vector<Fix>& fixes);
+
+void addFixesFrom3800(std::vector<Fix>& fixes);
 
 void addTextFixes(std::vector<Fix>& fixes);
 

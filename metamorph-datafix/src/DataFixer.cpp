@@ -17,6 +17,7 @@ using wire::nbt::NbtTag;
         addFixesFrom4000(built);
         addTextFixes(built);
         addEntityFixes(built);
+        addFixesFrom3800(built);
         addFixesFrom4300(built);
         addFixesFrom4996(built);
         std::ranges::stable_sort(built, {}, &Fix::version);
@@ -64,6 +65,9 @@ void apply(const Fix& fix, Domain domain, NbtCompound& root, const Context& cont
         break;
     case Target::ItemStack:
         forEachStack(root, [&](NbtCompound& stack) { fix.apply(stack, context); });
+        break;
+    case Target::LegacyStack:
+        forEachLegacyStack(root, [&](NbtCompound& stack) { fix.apply(stack, context); });
         break;
     case Target::Components:
         forEachComponents(root, [&](NbtCompound& components) { fix.apply(components, context); });
