@@ -68,7 +68,7 @@ is already current as it is. A chunk that cannot be read is reported, and the co
 | Module | Namespace | Holds |
 |---|---|---|
 | `metamorph-region` | `basalt::metamorph::region` | Anvil and Linear region files, read and write |
-| `metamorph-datafix` | `basalt::metamorph::datafix` | The world data fixes, from 1.13 data versions to the current one |
+| `metamorph-datafix` | `basalt::metamorph::datafix` | The world data fixes, from 1.12 data versions to the current one |
 | `tools/cli` | | The `metamorph` executable |
 
 Wire provides the build, NBT and compression. Inside Basalt Server, Metamorph reuses the Wire that Server already

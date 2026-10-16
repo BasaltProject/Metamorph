@@ -38,6 +38,13 @@ void forEachCompound(wire::nbt::NbtCompound& root, std::string_view listKey,
 
 void addEntityFixes(std::vector<Fix>& fixes);
 
+void addFixesFrom1200(std::vector<Fix>& fixes);
+
+void addFlatteningFixes(std::vector<Fix>& fixes);
+
+/// parity: `ItemStackSpawnEggFix`, for the egg item `itemType` that names its mob in `tag.EntityTag.id`.
+void convertSpawnEgg(wire::nbt::NbtCompound& stack, std::string_view itemType);
+
 void addFixesFrom1400(std::vector<Fix>& fixes);
 
 void addFixesFrom2600(std::vector<Fix>& fixes);

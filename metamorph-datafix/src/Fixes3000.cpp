@@ -155,8 +155,8 @@ void blendingDataOutsideOverworld(NbtCompound& chunk, const Context& context) {
     }
 }
 
-// parity: `ItemStackSpawnEggFix`, the pig egg that carries another mob's id.
-void spawnEgg(NbtCompound& stack, const Context&) {
+// parity: `ItemStackSpawnEggFix`, an egg item that carries another mob's id.
+void spawnEggOf(NbtCompound& stack, std::string_view itemType) {
     static const std::map<std::string, std::string> kEggs{
         {"minecraft:bat", "minecraft:bat_spawn_egg"},
         {"minecraft:blaze", "minecraft:blaze_spawn_egg"},
@@ -207,7 +207,7 @@ void spawnEgg(NbtCompound& stack, const Context&) {
         {"minecraft:zombie_horse", "minecraft:zombie_horse_spawn_egg"},
         {"minecraft:zombie_pigman", "minecraft:zombie_pigman_spawn_egg"},
         {"minecraft:zombie_villager", "minecraft:zombie_villager_spawn_egg"}};
-    if (namespaced(stack.getString("id")) != "minecraft:pig_spawn_egg") {
+    if (namespaced(stack.getString("id")) != itemType) {
         return;
     }
     NbtCompound* tag = compoundAt(stack, "tag");
@@ -251,7 +251,11 @@ void effectDurationOfItem(NbtCompound& stack, const Context&) {
     }
 }
 
+void spawnEgg(NbtCompound& stack, const Context&) { spawnEggOf(stack, "minecraft:pig_spawn_egg"); }
+
 } // namespace
+
+void convertSpawnEgg(NbtCompound& stack, std::string_view itemType) { spawnEggOf(stack, itemType); }
 
 void addFixesFrom3000(std::vector<Fix>& fixes) {
     fixes.insert(fixes.end(), {

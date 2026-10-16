@@ -714,6 +714,7 @@ void addFixesFrom1400(std::vector<Fix>& fixes) {
     fixes.insert(
         fixes.end(),
         {
+            {1800, Target::Chunk, {}, structurePieceIds},
             {2503, Target::Chunk, {}, wallProperties},
             {2505, Target::Entity, {}, memoryExpiry},
             {2508, Target::Chunk, {}, [](NbtCompound& c, const Context&) { renameOldBlocks(c, fungusName); }},
