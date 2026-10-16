@@ -19,6 +19,7 @@ using wire::nbt::NbtType;
         addFixesFrom4000(built);
         addTextFixes(built);
         addEntityFixes(built);
+        addFixesFrom1400(built);
         addFixesFrom2600(built);
         addFixesFrom3000(built);
         addFixesFrom3400(built);
