@@ -675,6 +675,32 @@ void renameLegacyItems(NbtCompound& stack, std::optional<std::string> (*renamer)
                : std::nullopt;
 }
 
+// parity: the namespaced-string type the structure piece ids have since 1.14, which lowercases legacy ids.
+void structurePieceIds(NbtCompound& chunk, const Context&) {
+    NbtCompound* level = compoundAt(chunk, "Level");
+    NbtCompound* structures = level == nullptr ? nullptr : compoundAt(*level, "Structures");
+    NbtCompound* starts = structures == nullptr ? nullptr : compoundAt(*structures, "Starts");
+    if (starts == nullptr) {
+        return;
+    }
+    for (std::size_t i = 0; i < starts->names().size(); ++i) {
+        NbtCompound* start = starts->find(starts->names()[i])->get<NbtCompound>();
+        if (start == nullptr) {
+            continue;
+        }
+        forEachCompound(*start, "Children", [](NbtCompound& piece) {
+            const NbtTag* id = piece.find("id");
+            if (id == nullptr || id->get<std::string>() == nullptr) {
+                return;
+            }
+            std::string lowered = *id->get<std::string>();
+            std::ranges::transform(lowered, lowered.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            piece.putString("id", namespaced(lowered));
+        });
+    }
+}
+
 // parity: `EntityZombifiedPiglinRenameFix`.
 void zombifiedPiglin(NbtCompound& entity, const Context&) {
     if (namespaced(entity.getString("id")) == "minecraft:zombie_pigman") {
