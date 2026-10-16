@@ -19,6 +19,7 @@ using wire::nbt::NbtType;
         addFixesFrom4000(built);
         addTextFixes(built);
         addEntityFixes(built);
+        addFixesFrom2600(built);
         addFixesFrom3000(built);
         addFixesFrom3400(built);
         addFixesFrom3800(built);
@@ -39,11 +40,17 @@ void apply(const Fix& fix, Domain domain, NbtCompound& root, const Context& cont
         break;
     case Target::BlockEntity:
         if (domain == Domain::Chunk) {
-            forEachCompound(root, "block_entities", [&](NbtCompound& entity) {
-                if (fix.blockEntityId.empty() || entity.getString("id") == fix.blockEntityId) {
-                    fix.apply(entity, context);
-                }
-            });
+            const auto each = [&](NbtCompound& holder, std::string_view key) {
+                forEachCompound(holder, key, [&](NbtCompound& entity) {
+                    if (fix.blockEntityId.empty() || entity.getString("id") == fix.blockEntityId) {
+                        fix.apply(entity, context);
+                    }
+                });
+            };
+            each(root, "block_entities");
+            if (NbtTag* level = root.find("Level"); level != nullptr && level->get<NbtCompound>() != nullptr) {
+                each(*level->get<NbtCompound>(), "TileEntities");
+            }
         }
         break;
     case Target::Palette:

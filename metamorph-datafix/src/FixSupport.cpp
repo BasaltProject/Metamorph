@@ -67,17 +67,24 @@ void forEachEntity(Domain domain, NbtCompound& root, const std::function<void(Nb
         withPassengers(root, edit);
         return;
     }
-    // parity: Basalt keeps the entities of a chunk in its own key, shaped as vanilla's entity files shape them.
-    const std::string_view key = domain == Domain::Entities ? "Entities" : "basalt_entities";
-    NbtTag* held = root.find(key);
-    NbtList* list = held == nullptr ? nullptr : held->get<NbtList>();
-    if (list == nullptr) {
+    const auto each = [&edit](NbtCompound& holder, std::string_view key) {
+        NbtTag* held = holder.find(key);
+        NbtList* list = held == nullptr ? nullptr : held->get<NbtList>();
+        for (std::size_t i = 0; list != nullptr && i < list->size(); ++i) {
+            if (NbtCompound* entity = (*list)[i].get<NbtCompound>(); entity != nullptr) {
+                withPassengers(*entity, edit);
+            }
+        }
+    };
+    if (domain == Domain::Entities) {
+        each(root, "Entities");
         return;
     }
-    for (std::size_t i = 0; i < list->size(); ++i) {
-        if (NbtCompound* entity = (*list)[i].get<NbtCompound>(); entity != nullptr) {
-            withPassengers(*entity, edit);
-        }
+    // parity: Basalt keeps the entities of a chunk in its own key, shaped as vanilla's entity files shape them.
+    each(root, "basalt_entities");
+    each(root, "entities");
+    if (NbtTag* level = root.find("Level"); level != nullptr && level->get<NbtCompound>() != nullptr) {
+        each(*level->get<NbtCompound>(), "Entities");
     }
 }
 

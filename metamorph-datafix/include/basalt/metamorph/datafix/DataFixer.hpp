@@ -16,6 +16,8 @@ enum class Domain : std::uint8_t { Chunk, Player, Entities };
 struct Context {
     /// parity: `__context.dimension`, which `BlendingDataFix` reads.
     bool overworld = true;
+    /// parity: `__context.generator` being `minecraft:noise`, which makes an old chunk blend into new terrain.
+    bool noiseGenerator = true;
 };
 
 /// parity: `DataFixerUpper.update`, running every fix after `fromVersion` up to `toVersion` in order.

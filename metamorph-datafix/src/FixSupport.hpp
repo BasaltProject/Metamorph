@@ -38,6 +38,8 @@ void forEachCompound(wire::nbt::NbtCompound& root, std::string_view listKey,
 
 void addEntityFixes(std::vector<Fix>& fixes);
 
+void addFixesFrom2600(std::vector<Fix>& fixes);
+
 void addFixesFrom3000(std::vector<Fix>& fixes);
 
 void addFixesFrom3400(std::vector<Fix>& fixes);
