@@ -46,7 +46,7 @@ constexpr std::string_view kEmptyComponent = R"({"text":""})";
     return std::nullopt;
 }
 
-[[nodiscard]] NbtTag listOfStrings(const std::vector<std::string>& values) {
+[[maybe_unused, nodiscard]] NbtTag listOfStrings(const std::vector<std::string>& values) {
     std::vector<NbtTag> elements;
     for (const std::string& value : values) {
         elements.push_back(NbtTag::ofString(value));
@@ -313,7 +313,7 @@ void mobEffectInstanceList(NbtCompound& holder, std::string_view from, std::stri
     replaceField(holder, from, to, listOfCompounds(std::move(fixed)));
 }
 
-void stewEntry(NbtCompound& input, NbtCompound& output) {
+[[maybe_unused]] void stewEntry(NbtCompound& input, NbtCompound& output) {
     effectIdField(input, "EffectId", "id");
     if (const NbtTag* id = input.find("id"); id != nullptr && &input != &output) {
         output.set("id", *id);

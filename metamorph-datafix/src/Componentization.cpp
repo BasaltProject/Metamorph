@@ -141,7 +141,7 @@ const std::set<std::string_view> kBooleanProperties{"attached",
     return NbtTag::ofList(NbtList{type, std::move(elements)});
 }
 
-[[nodiscard]] bool isEmptyCompound(const NbtTag& tag) {
+[[maybe_unused, nodiscard]] bool isEmptyCompound(const NbtTag& tag) {
     const NbtCompound* held = tag.get<NbtCompound>();
     return held != nullptr && held->empty();
 }
@@ -720,7 +720,7 @@ void fixItemStack(Stack& stack) {
         stack.setComponent("minecraft:hide_additional_tooltip", compound(NbtCompound{}));
     }
     if (stack.is("minecraft:crossbow")) {
-        stack.removeTag("Charged");
+        static_cast<void>(stack.removeTag("Charged"));
         const auto empty = emptyList();
         auto projectiles = stack.removeTag("ChargedProjectiles");
         const NbtList* list = projectiles.has_value() ? projectiles->get<NbtList>() : nullptr;

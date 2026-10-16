@@ -136,7 +136,7 @@ void alignBitStorage(NbtCompound& chunk, const Context&) {
         return *v;
     }
     if (const auto* v = tag->get<float>(); v != nullptr) {
-        return *v;
+        return static_cast<double>(*v);
     }
     const auto number = whole(tag);
     return number.has_value() ? static_cast<double>(*number) : fallback;

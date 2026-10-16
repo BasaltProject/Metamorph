@@ -311,11 +311,11 @@ public:
         list_.push_back(&constants().air);
         for (int index = 0; index < 4096; ++index) {
             const int x = index & 15;
-            const int y = (index >> 8) & 15;
+            const int row = (index >> 8) & 15;
             const int z = (index >> 4) & 15;
-            const int id = nibble(add, x, y, z) << 12 |
+            const int id = nibble(add, x, row, z) << 12 |
                            (static_cast<std::uint8_t>((*blocks)[static_cast<std::size_t>(index)])) << 4 |
-                           nibble(data, x, y, z);
+                           nibble(data, x, row, z);
             if (constants().fix.contains(id >> 4)) {
                 addFix(id >> 4, index);
             }
