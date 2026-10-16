@@ -1,5 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <basalt/metamorph/datafix/DataFixer.hpp>
+#include <basalt/wire/nbt/NbtIO.hpp>
 
 #include <doctest.h>
 
@@ -283,4 +284,26 @@ TEST_CASE("an item saved before components keeps its enchantments, name and dama
     REQUIRE(components->getCompound("minecraft:enchantments") != nullptr);
     CHECK(components->getCompound("minecraft:enchantments")->getInt("minecraft:sharpness") == 3);
     CHECK(components->contains("minecraft:custom_name"));
+}
+
+TEST_CASE("an upgraded sign still writes and reads back, with its neighbours") {
+    NbtCompound sign;
+    sign.putString("id", "minecraft:sign");
+    sign.putString("Text1", R"({"text":"a"})");
+    NbtCompound chest;
+    chest.putString("id", "minecraft:chest");
+    NbtList entities{NbtType::Compound, {}};
+    entities.push(NbtTag::ofCompound(sign));
+    entities.push(NbtTag::ofCompound(chest));
+    NbtCompound chunk;
+    chunk.set("block_entities", NbtTag::ofList(entities));
+    basalt::metamorph::datafix::upgrade(Domain::Chunk, chunk, 3337);
+
+    const auto bytes = basalt::wire::nbt::nbtIO::write(NbtTag::ofCompound(chunk), "");
+    const auto back = basalt::wire::nbt::nbtIO::read(bytes);
+    REQUIRE(back.has_value());
+    const NbtList* list = back->tag.get<NbtCompound>()->getList("block_entities");
+    REQUIRE(list != nullptr);
+    CHECK(list->size() == 2);
+    CHECK((*list)[1].get<NbtCompound>()->getString("id") == "minecraft:chest");
 }

@@ -9,7 +9,9 @@ namespace basalt::metamorph::datafix {
 namespace {
 
 using wire::nbt::NbtCompound;
+using wire::nbt::NbtList;
 using wire::nbt::NbtTag;
+using wire::nbt::NbtType;
 
 [[nodiscard]] const std::vector<Fix>& fixes() {
     static const std::vector<Fix> all = [] {
@@ -17,6 +19,7 @@ using wire::nbt::NbtTag;
         addFixesFrom4000(built);
         addTextFixes(built);
         addEntityFixes(built);
+        addFixesFrom3400(built);
         addFixesFrom3800(built);
         addFixesFrom4300(built);
         addFixesFrom4996(built);
@@ -75,6 +78,24 @@ void apply(const Fix& fix, Domain domain, NbtCompound& root, const Context& cont
     }
 }
 
+/// A fix may turn the elements of a list into another type; the list has to say what they are now.
+void settleListTypes(NbtTag& tag) {
+    if (NbtCompound* compound = tag.get<NbtCompound>(); compound != nullptr) {
+        for (const std::string& name : std::vector<std::string>{compound->names()}) {
+            if (NbtTag* child = compound->find(name); child != nullptr) {
+                settleListTypes(*child);
+            }
+        }
+    } else if (NbtList* list = tag.get<NbtList>(); list != nullptr) {
+        std::vector<NbtTag> elements(list->begin(), list->end());
+        for (NbtTag& element : elements) {
+            settleListTypes(element);
+        }
+        const NbtType type = elements.empty() ? NbtType::End : elements.front().type();
+        *list = NbtList{type, std::move(elements)};
+    }
+}
+
 } // namespace
 
 void upgrade(Domain domain, NbtCompound& root, std::int32_t fromVersion, const Context& context,
@@ -84,6 +105,9 @@ void upgrade(Domain domain, NbtCompound& root, std::int32_t fromVersion, const C
             apply(fix, domain, root, context);
         }
     }
+    NbtTag wrapped = NbtTag::ofCompound(std::move(root));
+    settleListTypes(wrapped);
+    root = std::move(*wrapped.get<NbtCompound>());
 }
 
 } // namespace basalt::metamorph::datafix
