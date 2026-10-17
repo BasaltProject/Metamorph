@@ -173,6 +173,28 @@ NbtCompound worldBorderOfLegacy(const NbtCompound& level) {
 
 namespace {
 
+void renameTo(NbtCompound& compound, std::string_view from, std::string_view to);
+
+} // namespace
+
+NbtCompound dragonFightOfLegacy(const NbtCompound& legacy) {
+    NbtCompound fight = legacy;
+    renameTo(fight, "NeedsStateScanning", "needs_state_scanning");
+    renameTo(fight, "DragonKilled", "dragon_killed");
+    renameTo(fight, "PreviouslyKilled", "previously_killed");
+    renameTo(fight, "Dragon", "dragon_uuid");
+    renameTo(fight, "ExitPortalLocation", "exit_portal_location");
+    renameTo(fight, "Gateways", "gateways");
+    if (fight.getBoolean("IsRespawning")) {
+        fight.putString("respawn_stage", "start");
+        fight.putInt("respawn_time", 0);
+    }
+    fight.remove("IsRespawning");
+    return fight;
+}
+
+namespace {
+
 using wire::nbt::NbtList;
 
 void renameTo(NbtCompound& compound, std::string_view from, std::string_view to) {
