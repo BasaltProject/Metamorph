@@ -9,8 +9,7 @@ namespace basalt::metamorph::datafix {
 /// The world version this build writes. parity: the `DataVersion` of 26.3.
 inline constexpr std::int32_t kCurrentVersion = 5023;
 
-/// What the root being upgraded is, since a fix may only make sense for one of them.
-/// `Entities` is the `entities/` file of a vanilla chunk, `Entities` list included.
+/// What the root being upgraded is, since a fix may fit one only; `Entities` is a vanilla `entities/` file.
 enum class Domain : std::uint8_t { Chunk, Player, Entities };
 
 struct Context {

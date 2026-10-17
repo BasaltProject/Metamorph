@@ -32,7 +32,8 @@ for line in text.splitlines():
     version = re.search(r"addSchema\((\d+)(?:, (\d+))?", line)
     if version:
         current = int(version.group(1))
-    declared = re.search(r"(?:ImmutableMap<String, String>|UnaryOperator<String>|Map<String, String>)\s+(\w+)\s*=\s*(.*)", line)
+    declared = re.search(
+        r"(?:ImmutableMap<String, String>|UnaryOperator<String>|Map<String, String>)\s+(\w+)\s*=\s*(.*)", line)
     if declared:
         variables[declared.group(1)] = declared.group(2)
     found = re.search(r"(ItemRenameFix|LegacyBlockRenameFix)\.create\((\w+), \"([^\"]*)\", (.*)\)\);", line)
@@ -83,7 +84,8 @@ out.append("};")
 out.append("")
 out.append(f"inline const std::array<Step, {len(steps)}> kSteps{{{{")
 for index, (version, kind, name, resolved) in enumerate(steps):
-    out.append(f"    {{{version}, {'true' if kind == 'block' else 'false'}, kStep{index}.data(), kStep{index}.size()}},")
+    flag = "true" if kind == "block" else "false"
+    out.append(f"    {{{version}, {flag}, kStep{index}.data(), kStep{index}.size()}},")
 out.append("}};")
 out.append("")
 out.append("} // namespace basalt::metamorph::datafix::renames")

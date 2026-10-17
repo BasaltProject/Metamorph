@@ -23,8 +23,7 @@ struct Fix {
 
 [[nodiscard]] std::string namespaced(std::string_view text);
 
-/// Every entity under `root` and the passengers riding them: the `Entities` of an entity file, the entities a chunk
-/// keeps with itself, or the player.
+/// Every entity under `root` and the passengers riding them, whether in an entity file, a chunk or the player.
 void forEachEntity(Domain domain, wire::nbt::NbtCompound& root,
                    const std::function<void(wire::nbt::NbtCompound&)>& edit);
 

@@ -142,8 +142,7 @@ void fireResistantToDamageResistant(NbtCompound& components, const Context&) {
     components.set("minecraft:damage_resistant", NbtTag::ofCompound(std::move(resistant)));
 }
 
-/// parity: `LockComponentPredicateFix.fixLock`, a plain key turned into a custom-name predicate; nothing to keep
-/// otherwise.
+/// parity: `LockComponentPredicateFix.fixLock`, a plain key turned into a custom-name predicate.
 [[nodiscard]] std::optional<NbtTag> lockPredicate(const NbtTag& lock) {
     const std::string* key = lock.get<std::string>();
     if (key == nullptr || key->empty()) {
