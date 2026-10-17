@@ -16,6 +16,7 @@ basalt_module(metamorph-datafix
         src/EntityFixes.cpp
         src/Fixes4996.cpp
         src/ItemWalk.cpp
+        src/LevelData.cpp
         src/TextFixes.cpp
     DEPENDS basalt::wire-common basalt::wire-nbt
 )
