@@ -2,10 +2,14 @@
 #include "FixSupport.hpp"
 
 #include <basalt/wire/common/json/Json.hpp>
+#include <basalt/wire/nbt/Snbt.hpp>
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <map>
 #include <optional>
 #include <set>
@@ -349,6 +353,223 @@ void tippedArrowPotion(NbtCompound& entity, const Context&) {
     }
     item.set("tag", NbtTag::ofCompound(std::move(tag)));
     entity.set("item", NbtTag::ofCompound(std::move(item)));
+}
+
+class ParticleReader {
+public:
+    explicit ParticleReader(std::string_view text) : text_(text) {}
+
+    [[nodiscard]] bool canRead() const { return at_ < text_.size(); }
+
+    [[nodiscard]] char peek() const { return text_[at_]; }
+
+    void skip() { ++at_; }
+
+    void skipWhitespace() {
+        while (canRead() && std::isspace(static_cast<unsigned char>(peek()))) {
+            skip();
+        }
+    }
+
+    [[nodiscard]] bool expect(char c) {
+        if (!canRead() || peek() != c) {
+            return false;
+        }
+        skip();
+        return true;
+    }
+
+    /// brigadier's `readFloat` and `readDouble`: digits, a point and a sign, nothing else.
+    [[nodiscard]] std::optional<double> number() {
+        const std::size_t start = at_;
+        while (canRead() && (std::isdigit(static_cast<unsigned char>(peek())) || peek() == '.' || peek() == '-')) {
+            skip();
+        }
+        if (start == at_) {
+            return std::nullopt;
+        }
+        char* end = nullptr;
+        const std::string token{text_.substr(start, at_ - start)};
+        const double value = std::strtod(token.c_str(), &end);
+        return end == token.c_str() + token.size() ? std::optional{value} : std::nullopt;
+    }
+
+    [[nodiscard]] std::optional<std::string> word() {
+        skipWhitespace();
+        if (!canRead()) {
+            return std::nullopt;
+        }
+        std::string out;
+        if (peek() == '"' || peek() == '\'') {
+            const char quote = peek();
+            skip();
+            while (canRead() && peek() != quote) {
+                if (peek() == '\\' && at_ + 1 < text_.size()) {
+                    skip();
+                }
+                out += peek();
+                skip();
+            }
+            return expect(quote) ? std::optional{out} : std::nullopt;
+        }
+        while (canRead() && (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_' || peek() == '-' ||
+                             peek() == '.' || peek() == '+')) {
+            out += peek();
+            skip();
+        }
+        return out;
+    }
+
+private:
+    std::string_view text_;
+    std::size_t at_ = 0;
+};
+
+[[nodiscard]] std::optional<std::array<float, 3>> particleVector(ParticleReader& reader) {
+    std::array<float, 3> out{};
+    for (std::size_t i = 0; i < 3; ++i) {
+        if (i > 0 && !reader.expect(' ')) {
+            return std::nullopt;
+        }
+        const std::optional<double> value = reader.number();
+        if (!value.has_value()) {
+            return std::nullopt;
+        }
+        out[i] = static_cast<float>(*value);
+    }
+    return out;
+}
+
+[[nodiscard]] NbtTag floatList(const std::array<float, 3>& values) {
+    std::vector<NbtTag> out;
+    for (const float value : values) {
+        out.push_back(NbtTag::ofFloat(value));
+    }
+    return NbtTag::ofList(NbtList{NbtType::Float, std::move(out)});
+}
+
+// parity: `ParticleUnflatteningFix`, the text `minecraft:dust 1.0 0.5 0.2 1.0` as the compound it stands for.
+NbtCompound unflattenedParticle(std::string_view description) {
+    const std::size_t space = description.find(' ');
+    const std::string id = namespaced(std::string{description.substr(0, space)});
+    const std::string_view contents =
+        space == std::string_view::npos ? std::string_view{} : description.substr(space + 1);
+    NbtCompound result;
+    result.putString("type", id);
+    if (space == std::string_view::npos) {
+        return result;
+    }
+    if (id == "minecraft:item") {
+        const std::size_t tagStart = contents.find('{');
+        NbtCompound stack;
+        stack.putInt("Count", 1);
+        stack.putString("id", std::string{contents.substr(0, tagStart)});
+        if (tagStart != std::string_view::npos) {
+            if (auto tag = wire::nbt::snbt::parse(contents.substr(tagStart)); tag.has_value()) {
+                stack.set("tag", std::move(*tag));
+            }
+        }
+        result.set("item", NbtTag::ofCompound(std::move(stack)));
+    } else if (id == "minecraft:block" || id == "minecraft:block_marker" || id == "minecraft:falling_dust" ||
+               id == "minecraft:dust_pillar") {
+        const std::size_t stateStart = contents.find('[');
+        NbtCompound state;
+        state.putString("Name", namespaced(std::string{contents.substr(0, stateStart)}));
+        if (stateStart != std::string_view::npos) {
+            ParticleReader reader{contents.substr(stateStart)};
+            NbtCompound properties;
+            bool good = reader.expect('[');
+            reader.skipWhitespace();
+            while (good && reader.canRead() && reader.peek() != ']') {
+                const auto key = reader.word();
+                reader.skipWhitespace();
+                good = key.has_value() && reader.expect('=');
+                reader.skipWhitespace();
+                const auto value = good ? reader.word() : std::nullopt;
+                good = good && value.has_value();
+                if (!good) {
+                    break;
+                }
+                properties.putString(*key, *value);
+                reader.skipWhitespace();
+                if (reader.canRead()) {
+                    if (reader.peek() != ',') {
+                        break;
+                    }
+                    reader.skip();
+                }
+            }
+            good = good && reader.expect(']');
+            if (good && !properties.empty()) {
+                state.set("Properties", NbtTag::ofCompound(std::move(properties)));
+            }
+        }
+        result.set("block_state", NbtTag::ofCompound(std::move(state)));
+    } else if (id == "minecraft:dust" || id == "minecraft:dust_color_transition") {
+        ParticleReader reader{contents};
+        const auto first = particleVector(reader);
+        const bool transition = id == "minecraft:dust_color_transition";
+        std::optional<double> scale;
+        std::optional<std::array<float, 3>> second;
+        if (first.has_value() && reader.expect(' ')) {
+            scale = reader.number();
+            if (scale.has_value() && transition && reader.expect(' ')) {
+                second = particleVector(reader);
+            }
+        }
+        if (first.has_value() && scale.has_value() && (!transition || second.has_value())) {
+            result.set(transition ? "from_color" : "color", floatList(*first));
+            if (transition) {
+                result.set("to_color", floatList(*second));
+            }
+            result.putFloat("scale", static_cast<float>(*scale));
+        }
+    } else if (id == "minecraft:sculk_charge") {
+        ParticleReader reader{contents};
+        if (const auto roll = reader.number(); roll.has_value()) {
+            result.putFloat("roll", static_cast<float>(*roll));
+        }
+    } else if (id == "minecraft:vibration") {
+        ParticleReader reader{contents};
+        std::array<double, 3> destination{};
+        bool good = true;
+        for (std::size_t i = 0; i < 3 && good; ++i) {
+            good = (i == 0 || reader.expect(' '));
+            const auto value = good ? reader.number() : std::nullopt;
+            good = good && value.has_value();
+            destination[i] = good ? static_cast<double>(static_cast<float>(*value)) : 0.0;
+        }
+        good = good && reader.expect(' ');
+        const auto arrival = good ? reader.number() : std::nullopt;
+        if (good && arrival.has_value()) {
+            NbtCompound source;
+            source.putString("type", "minecraft:block");
+            source.putIntArray("pos", {static_cast<std::int32_t>(std::floor(destination[0])),
+                                       static_cast<std::int32_t>(std::floor(destination[1])),
+                                       static_cast<std::int32_t>(std::floor(destination[2]))});
+            result.set("destination", NbtTag::ofCompound(std::move(source)));
+            result.putInt("arrival_in_ticks", static_cast<std::int32_t>(*arrival));
+        }
+    } else if (id == "minecraft:shriek") {
+        ParticleReader reader{contents};
+        if (const auto delay = reader.number(); delay.has_value()) {
+            result.putInt("delay", static_cast<std::int32_t>(*delay));
+        }
+    }
+    return result;
+}
+
+void particleUnflattening(NbtCompound& entity, const Context&) {
+    if (namespaced(entity.getString("id")) != "minecraft:area_effect_cloud") {
+        return;
+    }
+    const NbtTag* held = entity.find("Particle");
+    const std::string* text = held == nullptr ? nullptr : held->get<std::string>();
+    if (text == nullptr) {
+        return;
+    }
+    const std::string description = *text;
+    entity.set("Particle", NbtTag::ofCompound(unflattenedParticle(description)));
 }
 
 // parity: `ItemStackComponentizationFix`.
@@ -709,6 +930,7 @@ void addFixesFrom3800(std::vector<Fix>& fixes) {
                                   {3818, Target::BlockEntity, {}, beehiveFields},
                                   {3818, Target::BlockEntity, {}, bannerPatterns},
                                   {3818, Target::Entity, {}, tippedArrowPotion},
+                                  {3818, Target::Entity, {}, particleUnflattening},
                                   {3818, Target::LegacyStack, {}, componentizeStack},
                                   {3818, Target::Entity, {}, areaEffectCloudPotion},
                                   {3820, Target::BlockEntity, {}, playerHeadProfile},
