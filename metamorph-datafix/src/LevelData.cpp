@@ -5,8 +5,10 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace basalt::metamorph::datafix {
 namespace {
@@ -134,6 +136,169 @@ NbtCompound gameRulesOfLegacy(const NbtCompound& legacy) {
         rules.set("minecraft:fire_spread_radius_around_player", NbtTag::ofInt(fireSpreadRadius));
     }
     return rules;
+}
+
+NbtCompound worldBorderOfLegacy(const NbtCompound& level) {
+    const auto number = [&level](std::string_view key, double fallback) {
+        const NbtTag* tag = level.find(key);
+        if (tag == nullptr) {
+            return fallback;
+        }
+        if (const auto* v = tag->get<double>(); v != nullptr) {
+            return *v;
+        }
+        if (const auto* v = tag->get<float>(); v != nullptr) {
+            return static_cast<double>(*v);
+        }
+        if (const auto* v = tag->get<std::int64_t>(); v != nullptr) {
+            return static_cast<double>(*v);
+        }
+        if (const auto* v = tag->get<std::int32_t>(); v != nullptr) {
+            return static_cast<double>(*v);
+        }
+        return fallback;
+    };
+    NbtCompound border;
+    border.putDouble("center_x", number("BorderCenterX", 0.0));
+    border.putDouble("center_z", number("BorderCenterZ", 0.0));
+    border.putDouble("size", number("BorderSize", 59999968.0));
+    border.putLong("lerp_time", static_cast<std::int64_t>(number("BorderSizeLerpTime", 0.0)));
+    border.putDouble("lerp_target", number("BorderSizeLerpTarget", 0.0));
+    border.putDouble("safe_zone", number("BorderSafeZone", 5.0));
+    border.putDouble("damage_per_block", number("BorderDamagePerBlock", 0.2));
+    border.putInt("warning_blocks", static_cast<std::int32_t>(number("BorderWarningBlocks", 5.0)));
+    border.putInt("warning_time", static_cast<std::int32_t>(number("BorderWarningTime", 15.0)));
+    return border;
+}
+
+namespace {
+
+using wire::nbt::NbtList;
+
+void renameTo(NbtCompound& compound, std::string_view from, std::string_view to) {
+    if (const NbtTag* held = compound.find(from); held != nullptr) {
+        NbtTag moved = *held;
+        compound.remove(from);
+        compound.set(to, std::move(moved));
+    }
+}
+
+// parity: `RandomSequenceSettingsFix`.
+void randomSequenceSettings(NbtCompound& data) {
+    NbtCompound wrapped;
+    wrapped.set("sequences", NbtTag::ofCompound(data));
+    data = std::move(wrapped);
+}
+
+// parity: `RaidRenamesDataFix`.
+void raidRenames(NbtCompound& data) {
+    renameTo(data, "Raids", "raids");
+    renameTo(data, "Tick", "tick");
+    renameTo(data, "NextAvailableID", "next_id");
+    NbtTag* held = data.find("raids");
+    NbtList* raids = held == nullptr ? nullptr : held->get<NbtList>();
+    if (raids == nullptr) {
+        return;
+    }
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 12> kFields{{
+        {"Id", "id"},
+        {"Started", "started"},
+        {"Active", "active"},
+        {"TicksActive", "ticks_active"},
+        {"BadOmenLevel", "raid_omen_level"},
+        {"GroupsSpawned", "groups_spawned"},
+        {"PreRaidTicks", "cooldown_ticks"},
+        {"PostRaidTicks", "post_raid_ticks"},
+        {"TotalHealth", "total_health"},
+        {"NumGroups", "group_count"},
+        {"Status", "status"},
+        {"HeroesOfTheVillage", "heroes_of_the_village"},
+    }};
+    for (std::size_t i = 0; i < raids->size(); ++i) {
+        NbtCompound* raid = (*raids)[i].get<NbtCompound>();
+        if (raid == nullptr) {
+            continue;
+        }
+        const auto whole = [raid](std::string_view key) -> std::optional<std::int32_t> {
+            const NbtTag* tag = raid->find(key);
+            if (tag == nullptr) {
+                return std::nullopt;
+            }
+            if (const auto* v = tag->get<std::int32_t>(); v != nullptr) {
+                return *v;
+            }
+            if (const auto* v = tag->get<std::int8_t>(); v != nullptr) {
+                return *v;
+            }
+            if (const auto* v = tag->get<std::int16_t>(); v != nullptr) {
+                return *v;
+            }
+            if (const auto* v = tag->get<float>(); v != nullptr) {
+                return static_cast<std::int32_t>(*v);
+            }
+            if (const auto* v = tag->get<double>(); v != nullptr) {
+                return static_cast<std::int32_t>(*v);
+            }
+            return std::nullopt;
+        };
+        const auto x = whole("CX");
+        const auto y = whole("CY");
+        const auto z = whole("CZ");
+        if (x.has_value() && y.has_value() && z.has_value()) {
+            raid->remove("CX");
+            raid->remove("CY");
+            raid->remove("CZ");
+            raid->putIntArray("center", {*x, *y, *z});
+        }
+        for (const auto& [from, to] : kFields) {
+            renameTo(*raid, from, to);
+        }
+    }
+}
+
+// parity: `ScoreboardDisplaySlotFix`.
+void scoreboardDisplaySlots(NbtCompound& data) {
+    static constexpr std::array<std::string_view, 19> kSlots{
+        "list",
+        "sidebar",
+        "below_name",
+        "sidebar.team.black",
+        "sidebar.team.dark_blue",
+        "sidebar.team.dark_green",
+        "sidebar.team.dark_aqua",
+        "sidebar.team.dark_red",
+        "sidebar.team.dark_purple",
+        "sidebar.team.gold",
+        "sidebar.team.gray",
+        "sidebar.team.dark_gray",
+        "sidebar.team.blue",
+        "sidebar.team.green",
+        "sidebar.team.aqua",
+        "sidebar.team.red",
+        "sidebar.team.light_purple",
+        "sidebar.team.yellow",
+        "sidebar.team.white",
+    };
+    NbtTag* held = data.find("DisplaySlots");
+    NbtCompound* slots = held == nullptr ? nullptr : held->get<NbtCompound>();
+    if (slots == nullptr) {
+        return;
+    }
+    for (std::size_t i = 0; i < kSlots.size(); ++i) {
+        renameTo(*slots, "slot_" + std::to_string(i), kSlots[i]);
+    }
+}
+
+} // namespace
+
+void upgradeSavedData(std::string_view name, NbtCompound& data, std::int32_t fromVersion) {
+    if (name == "random_sequences" && fromVersion < 3565) {
+        randomSequenceSettings(data);
+    } else if (name == "raids" && fromVersion < 4309) {
+        raidRenames(data);
+    } else if (name == "scoreboard" && fromVersion < 3566) {
+        scoreboardDisplaySlots(data);
+    }
 }
 
 } // namespace basalt::metamorph::datafix
