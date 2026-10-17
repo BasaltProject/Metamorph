@@ -7,8 +7,7 @@
 
 namespace basalt::metamorph::datafix::legacy {
 
-/// One block state of the game before 1.13: `id` is `block << 4 | data`, `name` and `properties` are what the
-/// state became, `oldName` and `oldProperties` are how that same state was named before the flattening.
+/// One state before 1.13: `id` is `block << 4 | data`; `name`/`properties` are what it became, `old*` how it was named.
 struct StateRow {
     std::int32_t id;
     std::string_view name;

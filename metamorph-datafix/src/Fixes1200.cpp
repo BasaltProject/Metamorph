@@ -64,8 +64,7 @@ constexpr int kNorthMask = 1;
 
 constexpr std::string_view kFilterMe = "%%FILTER_ME%%";
 
-/// The state constants of `ChunkPalettedStorageFix.MappingConstants`, distinct objects as the palette compares
-/// identity.
+/// The state constants of `ChunkPalettedStorageFix.MappingConstants`, each distinct as the palette compares identity.
 struct Constants {
     State air = make("minecraft:air");
     State pumpkin = make("minecraft:pumpkin");
