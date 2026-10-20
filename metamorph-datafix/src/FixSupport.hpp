@@ -35,6 +35,8 @@ void forEachCompound(wire::nbt::NbtCompound& root, std::string_view listKey,
 /// parity: `ExtraDataFixUtils.getPlainTranslationKey`, a component that is only `{translate: key}`.
 [[nodiscard]] std::string_view plainTranslationKey(const wire::nbt::NbtTag* component);
 
+void addFixesFrom0100(std::vector<Fix>& fixes);
+
 void addEntityFixes(std::vector<Fix>& fixes);
 
 void addFixesFrom1200(std::vector<Fix>& fixes);

@@ -3,6 +3,7 @@ basalt_module(metamorph-datafix
         src/DataFixer.cpp
         src/FixSupport.cpp
         src/Componentization.cpp
+        src/Fixes0100.cpp
         src/Fixes1200.cpp
         src/FlatteningFixes.cpp
         src/Fixes1400.cpp

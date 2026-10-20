@@ -307,3 +307,39 @@ TEST_CASE("an upgraded sign still writes and reads back, with its neighbours") {
     CHECK(list->size() == 2);
     CHECK((*list)[1].get<NbtCompound>()->getString("id") == "minecraft:chest");
 }
+
+TEST_CASE("a world saved before 1.9 gets its mounts, mob splits and numeric items") {
+    NbtCompound mount;
+    mount.putString("id", "Pig");
+    NbtCompound rider;
+    rider.putString("id", "Skeleton");
+    rider.putInt("SkeletonType", 1);
+    rider.set("Riding", NbtTag::ofCompound(mount));
+    NbtList entities{NbtType::Compound, {}};
+    entities.push(NbtTag::ofCompound(rider));
+    NbtCompound item;
+    item.putShort("id", 276);
+    item.putByte("Count", 1);
+    NbtList items{NbtType::Compound, {}};
+    items.push(NbtTag::ofCompound(item));
+    NbtCompound chest;
+    chest.putString("id", "Chest");
+    chest.set("Items", NbtTag::ofList(items));
+    NbtList tiles{NbtType::Compound, {}};
+    tiles.push(NbtTag::ofCompound(chest));
+    NbtCompound level;
+    level.set("Entities", NbtTag::ofList(entities));
+    level.set("TileEntities", NbtTag::ofList(tiles));
+    NbtCompound chunk;
+    chunk.set("Level", NbtTag::ofCompound(level));
+    basalt::metamorph::datafix::upgrade(Domain::Chunk, chunk, 0, {}, 1343);
+    const NbtCompound* upgraded = chunk.getCompound("Level");
+    REQUIRE(upgraded != nullptr);
+    const NbtCompound* root = (*upgraded->getList("Entities"))[0].get<NbtCompound>();
+    CHECK(root->getString("id") == "minecraft:pig");
+    const NbtCompound* passenger = (*root->getList("Passengers"))[0].get<NbtCompound>();
+    CHECK(passenger->getString("id") == "minecraft:wither_skeleton");
+    const NbtCompound* tile = (*upgraded->getList("TileEntities"))[0].get<NbtCompound>();
+    CHECK(tile->getString("id") == "minecraft:chest");
+    CHECK((*tile->getList("Items"))[0].get<NbtCompound>()->getString("id") == "minecraft:diamond_sword");
+}

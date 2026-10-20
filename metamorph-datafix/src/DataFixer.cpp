@@ -16,6 +16,7 @@ using wire::nbt::NbtType;
 [[nodiscard]] const std::vector<Fix>& fixes() {
     static const std::vector<Fix> all = [] {
         std::vector<Fix> built;
+        addFixesFrom0100(built);
         addFixesFrom4000(built);
         addTextFixes(built);
         addEntityFixes(built);
