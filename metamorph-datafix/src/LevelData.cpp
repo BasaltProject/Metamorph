@@ -1,3 +1,5 @@
+#include "FixSupport.hpp"
+
 #include <basalt/metamorph/datafix/LevelData.hpp>
 
 #include <algorithm>
@@ -313,11 +315,64 @@ void scoreboardDisplaySlots(NbtCompound& data) {
 
 } // namespace
 
+namespace {
+
+[[nodiscard]] NbtTag blockPosOf(const NbtTag& held) {
+    const NbtCompound* pos = held.get<NbtCompound>();
+    if (pos == nullptr) {
+        return held;
+    }
+    return NbtTag::ofIntArray({pos->getInt("X"), pos->getInt("Y"), pos->getInt("Z")});
+}
+
+// parity: `LegacyDimensionIdFix`, `MapBannerBlockPosFormatFix` and `BlockPosFormatAndRenamesFix` for map data.
+void mapData(NbtCompound& data, std::int32_t fromVersion) {
+    if (fromVersion < 2537) {
+        if (const NbtTag* dimension = data.find("dimension");
+            dimension != nullptr && dimension->get<std::string>() == nullptr) {
+            std::int32_t id = 0;
+            if (const auto* v = dimension->get<std::int8_t>(); v != nullptr) {
+                id = *v;
+            } else if (const auto* w = dimension->get<std::int32_t>(); w != nullptr) {
+                id = *w;
+            }
+            data.putString("dimension",
+                           id == -1 ? "minecraft:the_nether" : (id == 1 ? "minecraft:the_end" : "minecraft:overworld"));
+        }
+    }
+    if (fromVersion >= 3813) {
+        return;
+    }
+    const auto renamed = [](NbtCompound& entry, std::string_view from, std::string_view to, bool asBlockPos) {
+        NbtTag* held = entry.find(from);
+        if (held == nullptr) {
+            return;
+        }
+        NbtTag value = asBlockPos ? blockPosOf(*held) : *held;
+        entry.remove(from);
+        entry.set(to, std::move(value));
+    };
+    forEachCompound(data, "banners", [&](NbtCompound& banner) {
+        renamed(banner, "Pos", "pos", true);
+        renamed(banner, "Color", "color", false);
+        renamed(banner, "Name", "name", false);
+    });
+    forEachCompound(data, "frames", [&](NbtCompound& frame) {
+        renamed(frame, "Pos", "pos", true);
+        renamed(frame, "Rotation", "rotation", false);
+        renamed(frame, "EntityId", "entity_id", false);
+    });
+}
+
+} // namespace
+
 void upgradeSavedData(std::string_view name, NbtCompound& data, std::int32_t fromVersion) {
     if (name == "random_sequences" && fromVersion < 3565) {
         randomSequenceSettings(data);
     } else if (name == "raids" && fromVersion < 4309) {
         raidRenames(data);
+    } else if (name == "map") {
+        mapData(data, fromVersion);
     } else if (name == "scoreboard" && fromVersion < 3566) {
         scoreboardDisplaySlots(data);
     }

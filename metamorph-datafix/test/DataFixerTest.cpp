@@ -1,5 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <basalt/metamorph/datafix/DataFixer.hpp>
+#include <basalt/metamorph/datafix/LevelData.hpp>
 #include <basalt/wire/nbt/NbtIO.hpp>
 
 #include <doctest.h>
@@ -342,4 +343,24 @@ TEST_CASE("a world saved before 1.9 gets its mounts, mob splits and numeric item
     const NbtCompound* tile = (*upgraded->getList("TileEntities"))[0].get<NbtCompound>();
     CHECK(tile->getString("id") == "minecraft:chest");
     CHECK((*tile->getList("Items"))[0].get<NbtCompound>()->getString("id") == "minecraft:diamond_sword");
+}
+
+TEST_CASE("a map saved before 1.20.5 gets a named dimension and block positions") {
+    NbtCompound pos;
+    pos.putInt("X", 3);
+    pos.putInt("Y", 64);
+    pos.putInt("Z", -5);
+    NbtCompound banner;
+    banner.set("Pos", NbtTag::ofCompound(pos));
+    banner.putString("Color", "red");
+    NbtList banners{NbtType::Compound, {}};
+    banners.push(NbtTag::ofCompound(banner));
+    NbtCompound data;
+    data.putByte("dimension", -1);
+    data.set("banners", NbtTag::ofList(banners));
+    basalt::metamorph::datafix::upgradeSavedData("map", data, 1343);
+    CHECK(data.getString("dimension") == "minecraft:the_nether");
+    const NbtCompound* upgraded = (*data.getList("banners"))[0].get<NbtCompound>();
+    CHECK(upgraded->getIntArray("pos").size() == 3);
+    CHECK(upgraded->getString("color") == "red");
 }
