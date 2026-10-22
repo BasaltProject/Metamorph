@@ -1,5 +1,6 @@
 #include "FixSupport.hpp"
 
+#include <algorithm>
 #include <array>
 #include <map>
 #include <optional>
