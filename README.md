@@ -65,6 +65,8 @@ that already holds files is refused.
 | `convert --to anvil` | Every region file as `.mca`, each chunk zlib-compressed |
 | `upgrade` | Every chunk and entity file at the current world version, each file keeping its format |
 
+The library also fixes level and player data; the command line upgrades chunk and entity files.
+
 `upgrade` reads the `DataVersion` of each chunk, runs the fixes from that version up to 5023, and leaves a chunk that
 is already current as it is. A chunk that cannot be read is reported, and the command exits with an error.
 
@@ -73,7 +75,7 @@ is already current as it is. A chunk that cannot be read is reported, and the co
 | Module | Namespace | Holds |
 |---|---|---|
 | `metamorph-region` | `basalt::metamorph::region` | Anvil and Linear region files, read and write |
-| `metamorph-datafix` | `basalt::metamorph::datafix` | The world data fixes, from 1.12 data versions to the current one |
+| `metamorph-datafix` | `basalt::metamorph::datafix` | The world data fixes (chunks, entities, level data, players), from pre-1.12 data versions to the current one |
 | `tools/cli` | | The `metamorph` executable |
 
 Wire provides the build, NBT and compression. Inside Basalt Server, Metamorph reuses the Wire that Server already
