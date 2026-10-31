@@ -72,10 +72,10 @@ TEST_CASE("an empty region is a header, an empty table and a footer") {
 TEST_CASE("what goes into a region comes back out of it, at the same coordinates") {
     LinearRegion region;
     const std::vector<std::uint8_t> corner = blob(4096, 7);
-    const std::vector<std::uint8_t> far = blob(70000, 200);
+    const std::vector<std::uint8_t> distant = blob(70000, 200);
     const std::vector<std::uint8_t> tiny = blob(1, 3);
     region.setChunk(0, 0, corner, 1000);
-    region.setChunk(31, 31, far, 2000);
+    region.setChunk(31, 31, distant, 2000);
     region.setChunk(5, 17, tiny, 3000);
     CHECK(region.residentBytes() == 4096 + 70000 + 1);
 
@@ -85,7 +85,7 @@ TEST_CASE("what goes into a region comes back out of it, at the same coordinates
     const std::expected<LinearRegion, LinearError> read = LinearRegion::read(written);
     REQUIRE(read.has_value());
     CHECK(sameBytes(read->chunkAt(0, 0), corner));
-    CHECK(sameBytes(read->chunkAt(31, 31), far));
+    CHECK(sameBytes(read->chunkAt(31, 31), distant));
     CHECK(sameBytes(read->chunkAt(5, 17), tiny));
     CHECK(read->timestampAt(0, 0) == 1000);
     CHECK(read->timestampAt(31, 31) == 2000);
