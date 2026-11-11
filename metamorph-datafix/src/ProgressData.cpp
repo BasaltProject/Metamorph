@@ -165,4 +165,55 @@ std::string criterionRenamed(std::string_view advancement, std::string_view crit
     return std::string{criterion};
 }
 
+void upgradeStatsTree(wire::nbt::NbtCompound& root, const std::int32_t fromVersion) {
+    wire::nbt::NbtTag* statsTag = root.find("stats");
+    auto* stats = statsTag == nullptr ? nullptr : statsTag->get<wire::nbt::NbtCompound>();
+    if (stats == nullptr) {
+        return;
+    }
+    StatCounters counters;
+    for (std::size_t category = 0; category < stats->size(); ++category) {
+        const auto* entries = stats->values()[category].get<wire::nbt::NbtCompound>();
+        for (std::size_t entry = 0; entries != nullptr && entry < entries->size(); ++entry) {
+            counters[stats->names()[category]][entries->names()[entry]] = entries->getInt(entries->names()[entry]);
+        }
+    }
+    upgradeStats(counters, fromVersion);
+    wire::nbt::NbtCompound rebuilt;
+    for (const auto& [category, entries] : counters) {
+        wire::nbt::NbtCompound inner;
+        for (const auto& [key, value] : entries) {
+            inner.putInt(key, static_cast<std::int32_t>(value));
+        }
+        rebuilt.set(category, wire::nbt::NbtTag::ofCompound(std::move(inner)));
+    }
+    root.set("stats", wire::nbt::NbtTag::ofCompound(std::move(rebuilt)));
+}
+
+void upgradeAdvancementsTree(wire::nbt::NbtCompound& root, const std::int32_t fromVersion) {
+    wire::nbt::NbtCompound rebuilt;
+    for (std::size_t index = 0; index < root.size(); ++index) {
+        const std::string& name = root.names()[index];
+        const auto* advancement = root.values()[index].get<wire::nbt::NbtCompound>();
+        if (advancement == nullptr) {
+            rebuilt.set(name, root.values()[index]);
+            continue;
+        }
+        const std::string renamed = advancementRenamed(name, fromVersion);
+        wire::nbt::NbtCompound copy = *advancement;
+        if (const wire::nbt::NbtTag* criteriaTag = copy.find("criteria"); criteriaTag != nullptr) {
+            if (const auto* criteria = criteriaTag->get<wire::nbt::NbtCompound>(); criteria != nullptr) {
+                wire::nbt::NbtCompound fixedCriteria;
+                for (std::size_t at = 0; at < criteria->size(); ++at) {
+                    fixedCriteria.set(criterionRenamed(renamed, criteria->names()[at], fromVersion),
+                                      criteria->values()[at]);
+                }
+                copy.set("criteria", wire::nbt::NbtTag::ofCompound(std::move(fixedCriteria)));
+            }
+        }
+        rebuilt.set(renamed, wire::nbt::NbtTag::ofCompound(std::move(copy)));
+    }
+    root = std::move(rebuilt);
+}
+
 } // namespace basalt::metamorph::datafix

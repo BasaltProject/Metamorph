@@ -939,29 +939,30 @@ void structuresBecomeConfigured(NbtCompound& chunk, const Context&) {
 } // namespace
 
 void addFixesFrom2600(std::vector<Fix>& fixes) {
-    fixes.insert(fixes.end(), {
-                                  {2679, Target::Chunk, {}, cauldronRename},
-                                  blockRename(2680, kGrassPath),
-                                  itemRename(2680, kGrassPath),
-                                  blockRename(2690, tables::kCopperOxidation),
-                                  itemRename(2690, tables::kCopperOxidation),
-                                  blockRename(2691, tables::kWaxedCopperSuffixes),
-                                  itemRename(2691, tables::kWaxedCopperSuffixes),
-                                  blockRename(2696, tables::kGrimstoneToDeepslate),
-                                  itemRename(2696, tables::kGrimstoneToDeepslate),
-                                  blockRename(2700, kCaveVines),
-                                  {2702, Target::Entity, {}, arrowPickup},
-                                  blockRename(2717, kAzalea),
-                                  itemRename(2717, kAzalea),
-                                  {2831, Target::BlockEntity, {}, spawnerOfBlockEntity},
-                                  {2831, Target::Entity, {}, spawnerOfMinecart},
-                                  {2832, Target::Chunk, {}, heightAndBiome},
-                                  {2838, Target::Chunk, {}, cavesAndCliffsBiomes},
-                                  {2841, Target::Chunk, {}, protoTickList},
-                                  {2842, Target::Chunk, {}, chunkRenames},
-                                  {2843, Target::Chunk, {}, overreachingTicks},
-                                  {2970, Target::Chunk, {}, structuresBecomeConfigured},
-                              });
+    fixes.insert(fixes.end(),
+                 {
+                     {2679, Target::Chunk, {}, cauldronRename, "CauldronRenameFix"},
+                     blockRename(2680, kGrassPath),
+                     itemRename(2680, kGrassPath),
+                     blockRename(2690, tables::kCopperOxidation),
+                     itemRename(2690, tables::kCopperOxidation),
+                     blockRename(2691, tables::kWaxedCopperSuffixes),
+                     itemRename(2691, tables::kWaxedCopperSuffixes),
+                     blockRename(2696, tables::kGrimstoneToDeepslate),
+                     itemRename(2696, tables::kGrimstoneToDeepslate),
+                     blockRename(2700, kCaveVines),
+                     {2702, Target::Entity, {}, arrowPickup, "AbstractArrowPickupFix"},
+                     blockRename(2717, kAzalea),
+                     itemRename(2717, kAzalea),
+                     {2831, Target::BlockEntity, {}, spawnerOfBlockEntity},
+                     {2831, Target::Entity, {}, spawnerOfMinecart},
+                     {2832, Target::Chunk, {}, heightAndBiome, "ChunkHeightAndBiomeFix"},
+                     {2838, Target::Chunk, {}, cavesAndCliffsBiomes, "NamespacedTypeRenameFix"},
+                     {2841, Target::Chunk, {}, protoTickList, "ChunkProtoTickListFix"},
+                     {2842, Target::Chunk, {}, chunkRenames, "ChunkRenamesFix"},
+                     {2843, Target::Chunk, {}, overreachingTicks, "OverreachingTickFix"},
+                     {2970, Target::Chunk, {}, structuresBecomeConfigured, "StructuresBecomeConfiguredFix"},
+                 });
 }
 
 } // namespace basalt::metamorph::datafix

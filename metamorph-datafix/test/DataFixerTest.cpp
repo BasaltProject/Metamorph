@@ -364,3 +364,33 @@ TEST_CASE("a map saved before 1.20.5 gets a named dimension and block positions"
     CHECK(upgraded->getIntArray("pos").size() == 3);
     CHECK(upgraded->getString("color") == "red");
 }
+
+TEST_CASE("a structure template saved before 1.13 gets the block states of today") {
+    NbtCompound log;
+    log.putString("Name", "minecraft:log");
+    NbtCompound properties;
+    properties.putString("axis", "y");
+    properties.putString("variant", "oak");
+    log.set("Properties", NbtTag::ofCompound(properties));
+    NbtCompound structure;
+    structure.set("palette", NbtTag::ofList(NbtList{NbtType::Compound, {NbtTag::ofCompound(log)}}));
+    CHECK(basalt::metamorph::datafix::upgrade(Domain::Structure, structure, 1449).empty());
+    const NbtList* palette = structure.getList("palette");
+    REQUIRE(palette != nullptr);
+    CHECK((*palette)[0].get<NbtCompound>()->getString("id") == "minecraft:oak_log");
+}
+
+TEST_CASE("points of interest saved by 1.14 are regrouped and the unpopulated ones dropped") {
+    NbtCompound armorer;
+    armorer.putString("type", "minecraft:armorer");
+    NbtCompound unemployed;
+    unemployed.putString("type", "minecraft:unemployed");
+    NbtCompound poi;
+    poi.set("0",
+            NbtTag::ofList(NbtList{NbtType::Compound, {NbtTag::ofCompound(armorer), NbtTag::ofCompound(unemployed)}}));
+    CHECK(basalt::metamorph::datafix::upgrade(Domain::PoiChunk, poi, 1945).empty());
+    const NbtCompound* section = poi.getCompound("Sections")->getCompound("0");
+    REQUIRE(section != nullptr);
+    CHECK(section->getList("Records")->size() == 1);
+    CHECK_FALSE(poi.contains("0"));
+}

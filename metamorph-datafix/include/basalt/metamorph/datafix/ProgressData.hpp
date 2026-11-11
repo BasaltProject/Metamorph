@@ -1,5 +1,7 @@
 #pragma once
 
+#include <basalt/wire/nbt/NbtTag.hpp>
+
 #include <cstdint>
 #include <map>
 #include <string>
@@ -21,5 +23,11 @@ void upgradeStats(StatCounters& stats, std::int32_t fromVersion);
 /// parity: `CriteriaRenameFix` for the cat variants of the catalogue advancement.
 [[nodiscard]] std::string criterionRenamed(std::string_view advancement, std::string_view criterion,
                                            std::int32_t fromVersion);
+
+/// The `stats` compound of a statistics file, the counters of every category upgraded in place.
+void upgradeStatsTree(wire::nbt::NbtCompound& root, std::int32_t fromVersion);
+
+/// An advancements file, with its advancements and criteria renamed in place.
+void upgradeAdvancementsTree(wire::nbt::NbtCompound& root, std::int32_t fromVersion);
 
 } // namespace basalt::metamorph::datafix

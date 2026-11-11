@@ -445,24 +445,28 @@ void copperGolemWeatherState(NbtCompound& entity, const Context&) {
 
 void addEntityFixes(std::vector<Fix>& fixes) {
     fixes.push_back({4299, Target::ItemStack, {}, bucketVariants});
-    fixes.insert(fixes.end(), {
-                                  {4067, Target::Entity, {}, splitBoat},
-                                  {4081, Target::Entity, "minecraft:salmon", salmonSize},
-                                  {4173, Target::Entity, "minecraft:tnt_minecart", tntMinecartFuse},
-                                  {4187, Target::Entity, {}, followRanges},
-                                  {4293, Target::Entity, {}, dropChances},
-                                  {4296, Target::Entity, "minecraft:area_effect_cloud", areaEffectCloudScale},
-                                  {4300, Target::Entity, {}, saddleSlot},
-                                  {4301, Target::Entity, {}, equipmentFormat},
-                                  {4303, Target::Entity, {}, fallDistanceToDouble},
-                                  {4306, Target::Entity, {}, splitThrownPotion},
-                                  {4312, Target::Entity, {}, playerEquipment},
-                                  {4314, Target::Entity, {}, inlineBlockPositions},
-                                  {4424, Target::Entity, {}, locatorBarStyle},
-                                  {4763, Target::Entity, "minecraft:villager", villagerDataFinalized},
-                                  {4763, Target::Entity, "minecraft:zombie_villager", villagerDataFinalized},
-                                  {4535, Target::Entity, "minecraft:copper_golem", copperGolemWeatherState},
-                              });
+    fixes.insert(
+        fixes.end(),
+        {
+            {4067, Target::Entity, {}, splitBoat, "BoatSplitFix"},
+            {4081, Target::Entity, "minecraft:salmon", salmonSize, "EntitySalmonSizeFix"},
+            {4173, Target::Entity, "minecraft:tnt_minecart", tntMinecartFuse, "EntityFieldsRenameFix"},
+            {4187, Target::Entity, {}, followRanges, "EntityAttributeBaseValueFix"},
+            {4293, Target::Entity, {}, dropChances, "DropChancesFormatFix"},
+            {4296, Target::Entity, "minecraft:area_effect_cloud", areaEffectCloudScale,
+             "AreaEffectCloudDurationScaleFix"},
+            {4300, Target::Entity, {}, saddleSlot, "SaddleEquipmentSlotFix"},
+            {4301, Target::Entity, {}, equipmentFormat, "EquipmentFormatFix"},
+            {4303, Target::Entity, {}, fallDistanceToDouble, "EntityFallDistanceFloatToDoubleFix"},
+            {4306, Target::Entity, {}, splitThrownPotion, "ThrownPotionSplitFix"},
+            {4312, Target::Entity, {}, playerEquipment, "PlayerEquipmentFix"},
+            {4314, Target::Entity, {}, inlineBlockPositions, "InlineBlockPosFormatFix"},
+            {4424, Target::Entity, {}, locatorBarStyle, "AddFieldFix"},
+            {4763, Target::Entity, "minecraft:villager", villagerDataFinalized, "VillagerSetVillagerDataFinalized"},
+            {4763, Target::Entity, "minecraft:zombie_villager", villagerDataFinalized,
+             "ZombieVillagerSetVillagerDataFinalized"},
+            {4535, Target::Entity, "minecraft:copper_golem", copperGolemWeatherState, "CopperGolemWeatherStateFix"},
+        });
 }
 
 } // namespace basalt::metamorph::datafix

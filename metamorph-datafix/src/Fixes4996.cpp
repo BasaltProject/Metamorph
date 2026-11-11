@@ -272,24 +272,27 @@ void unfilledBuriedTreasureMap(NbtCompound& stack, const Context&) {
 } // namespace
 
 void addFixesFrom4996(std::vector<Fix>& fixes) {
-    fixes.insert(fixes.end(), {
-                                  {4996, Target::Components, {}, unflattenPotDecorations},
-                                  {4996, Target::BlockEntity, "minecraft:decorated_pot", unflattenSherds},
-                                  {4997, Target::Chunk, {}, rebuildBlendingData},
-                                  {5002, Target::BlockEntity, "minecraft:sign", allowSignOpFeatures},
-                                  {5002, Target::BlockEntity, "minecraft:hanging_sign", allowSignOpFeatures},
-                                  {5006, Target::Chunk, {}, blockStateFieldNames},
-                                  {5006, Target::Entity, {}, blockStateFieldNamesOfEntity},
-                                  {5006, Target::BlockEntity, "minecraft:piston", blockStateFieldNamesOfPiston},
-                                  {5007, Target::Components, {}, splitSwingAnimation},
-                                  {5008, Target::ItemStack, {}, explorerMapItem},
-                                  {5008, Target::Components, {}, removeMapColor},
-                                  {5009, Target::Chunk, {}, blendingHeightsToFloat},
-                                  {5012, Target::ItemStack, {}, renameExplorerMaps},
-                                  {5013, Target::Chunk, {}, mergeTerrainStatus},
-                                  {5014, Target::Components, {}, removeBlockTransformer},
-                                  {5016, Target::ItemStack, {}, unfilledBuriedTreasureMap},
-                              });
+    fixes.insert(
+        fixes.end(),
+        {
+            {4996, Target::Components, {}, unflattenPotDecorations, "PotDecorationsComponentUnflatteningFix"},
+            {4996, Target::BlockEntity, "minecraft:decorated_pot", unflattenSherds,
+             "PotDecorationsBlockEntityUnflatteningFix"},
+            {4997, Target::Chunk, {}, rebuildBlendingData, "BlendingDataFix"},
+            {5002, Target::BlockEntity, "minecraft:sign", allowSignOpFeatures, "SignsOpFlagFix"},
+            {5002, Target::BlockEntity, "minecraft:hanging_sign", allowSignOpFeatures, "SignsOpFlagFix"},
+            {5006, Target::Chunk, {}, blockStateFieldNames, "BlockStateFieldNamesFix"},
+            {5006, Target::Entity, {}, blockStateFieldNamesOfEntity, "BlockStateFieldNamesFix"},
+            {5006, Target::BlockEntity, "minecraft:piston", blockStateFieldNamesOfPiston, "BlockStateFieldNamesFix"},
+            {5007, Target::Components, {}, splitSwingAnimation, "SwingAnimationComponentSplitFix"},
+            {5008, Target::ItemStack, {}, explorerMapItem, "ExplorerMapItemFix"},
+            {5008, Target::Components, {}, removeMapColor, "MapColorComponentRemovalFix"},
+            {5009, Target::Chunk, {}, blendingHeightsToFloat, "BlendingDataNoValueHeightFix"},
+            {5012, Target::ItemStack, {}, renameExplorerMaps, "ItemRenameFix"},
+            {5013, Target::Chunk, {}, mergeTerrainStatus, "MergeTerrainChunkStatusFix"},
+            {5014, Target::Components, {}, removeBlockTransformer, "RemoveBlockTransformerComponentFix"},
+            {5016, Target::ItemStack, {}, unfilledBuriedTreasureMap, "UnfilledBuriedTreasureMapFix"},
+        });
 }
 
 } // namespace basalt::metamorph::datafix

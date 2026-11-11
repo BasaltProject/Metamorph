@@ -1,3 +1,4 @@
+#include "DomainSupport.hpp"
 #include "FixSupport.hpp"
 #include "FlatteningTables.hpp"
 #include "LegacyStates.hpp"
@@ -277,32 +278,6 @@ void itemFrameDirection(NbtCompound& entity, const Context&) {
     }
 }
 
-[[nodiscard]] std::string plainTextComponent(std::string_view text) {
-    std::string out = "{\"text\":\"";
-    for (const char c : text) {
-        switch (c) {
-        case '"':
-            out += "\\\"";
-            break;
-        case '\\':
-            out += "\\\\";
-            break;
-        case '\n':
-            out += "\\n";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        case '\r':
-            out += "\\r";
-            break;
-        default:
-            out += c;
-        }
-    }
-    return out + "\"}";
-}
-
 void customNameToComponent(NbtCompound& holder, std::string_view key, bool plainString = false) {
     const NbtTag* held = holder.find(key);
     const std::string* name = held == nullptr ? nullptr : held->get<std::string>();
@@ -312,7 +287,7 @@ void customNameToComponent(NbtCompound& holder, std::string_view key, bool plain
     if (name->empty()) {
         holder.remove(key);
     } else if (!plainString) {
-        holder.putString(key, plainTextComponent(*name));
+        holder.putString(key, support::plainTextJson(*name));
     }
 }
 
@@ -869,33 +844,34 @@ void addFlatteningFixes(std::vector<Fix>& fixes) {
                              }});
         }
     }
-    fixes.insert(fixes.end(), {
-                                  {1451, Target::LegacyStack, {}, mapId},
-                                  {1451, Target::LegacyStack, {}, flattenItem},
-                                  {1451, Target::LegacyStack, {}, genericSpawnEgg},
-                                  {1451, Target::Entity, {}, wolfColor},
-                                  {1451, Target::BlockEntity, {}, bannerColors},
-                                  {1451, Target::BlockEntity, {}, pistonState},
-                                  {1451, Target::Entity, {}, entityBlockStates},
-                                  {1456, Target::Entity, {}, itemFrameDirection},
-                                  {1458, Target::Entity, {}, entityCustomName},
-                                  {1458, Target::LegacyStack, {}, itemCustomName},
-                                  {1458, Target::BlockEntity, {}, blockEntityCustomName},
-                                  {1460, Target::Entity, {}, paintingMotive},
-                                  {1466, Target::Chunk, {}, chunkToProtochunk},
-                                  {1474, Target::Entity, {}, colorlessShulker},
-                                  {1474, Target::Chunk, {}, colorlessShulkerBlock},
-                                  {1474, Target::LegacyStack, {}, colorlessShulkerItem},
-                                  {1483, Target::LegacyStack, {}, renamingOfEggs},
-                                  {1484, Target::Chunk, {}, heightmapNames},
-                                  {1494, Target::LegacyStack, {}, enchantmentNames},
-                                  {1496, Target::Chunk, {}, leavesDistance},
-                                  {1510, Target::LegacyStack, {}, renamingOfItems},
-                                  {1510, Target::Entity, {}, entityRenames},
-                                  {1911, Target::Chunk, {}, chunkStatus},
-                                  {1961, Target::Chunk, {}, removeLightFlag},
-                                  {2202, Target::Chunk, {}, biomeVolume},
-                              });
+    fixes.insert(fixes.end(),
+                 {
+                     {1451, Target::LegacyStack, {}, mapId, "ItemStackMapIdFix"},
+                     {1451, Target::LegacyStack, {}, flattenItem, "ItemStackTheFlatteningFix"},
+                     {1451, Target::LegacyStack, {}, genericSpawnEgg, "ItemStackSpawnEggFix"},
+                     {1451, Target::Entity, {}, wolfColor, "EntityWolfColorFix"},
+                     {1451, Target::BlockEntity, {}, bannerColors, "BlockEntityBannerColorFix"},
+                     {1451, Target::BlockEntity, {}, pistonState, "BlockEntityBlockStateFix"},
+                     {1451, Target::Entity, {}, entityBlockStates, "EntityBlockStateFix"},
+                     {1456, Target::Entity, {}, itemFrameDirection, "EntityItemFrameDirectionFix"},
+                     {1458, Target::Entity, {}, entityCustomName, "EntityCustomNameToComponentFix"},
+                     {1458, Target::LegacyStack, {}, itemCustomName, "ItemCustomNameToComponentFix"},
+                     {1458, Target::BlockEntity, {}, blockEntityCustomName, "BlockEntityCustomNameToComponentFix"},
+                     {1460, Target::Entity, {}, paintingMotive, "EntityPaintingMotiveFix"},
+                     {1466, Target::Chunk, {}, chunkToProtochunk, "ChunkToProtochunkFix"},
+                     {1474, Target::Entity, {}, colorlessShulker, "ColorlessShulkerEntityFix"},
+                     {1474, Target::Chunk, {}, colorlessShulkerBlock},
+                     {1474, Target::LegacyStack, {}, colorlessShulkerItem},
+                     {1483, Target::LegacyStack, {}, renamingOfEggs},
+                     {1484, Target::Chunk, {}, heightmapNames, "HeightmapRenamingFix"},
+                     {1494, Target::LegacyStack, {}, enchantmentNames, "ItemStackEnchantmentNamesFix"},
+                     {1496, Target::Chunk, {}, leavesDistance, "LeavesFix"},
+                     {1510, Target::LegacyStack, {}, renamingOfItems, "ItemRenameFix"},
+                     {1510, Target::Entity, {}, entityRenames, "EntityTheRenameningFix"},
+                     {1911, Target::Chunk, {}, chunkStatus, "ChunkStatusFix"},
+                     {1961, Target::Chunk, {}, removeLightFlag, "ChunkLightRemoveFix"},
+                     {2202, Target::Chunk, {}, biomeVolume, "ChunkBiomeFix"},
+                 });
 }
 
 } // namespace basalt::metamorph::datafix

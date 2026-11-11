@@ -664,9 +664,10 @@ void palettedStorage(NbtCompound& chunk, const Context&) {
 } // namespace
 
 void addFixesFrom1200(std::vector<Fix>& fixes) {
-    fixes.insert(fixes.end(), {
-                                  {1451, Target::Chunk, {}, palettedStorage},
-                              });
+    fixes.insert(fixes.end(),
+                 {
+                     {1451, Target::Chunk, {}, palettedStorage, "ChunkPalettedStorageFix,BlockNameFlatteningFix"},
+                 });
 }
 
 } // namespace basalt::metamorph::datafix

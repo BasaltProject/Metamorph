@@ -271,24 +271,30 @@ void creakingHeartState(NbtCompound& entry, const Context&) {
 } // namespace
 
 void addFixesFrom4000(std::vector<Fix>& fixes) {
-    fixes.insert(fixes.end(), {
-                                  {4054, Target::BlockEntity, "minecraft:banner", ominousBannerBlockEntity},
-                                  {4054, Target::ItemStack, {}, ominousBannerItem},
-                                  {4055, Target::Components, {}, attributeIdPrefix},
-                                  {4055, Target::Entity, {}, attributeIdPrefixOfEntity},
-                                  {4059, Target::Components, {}, foodToConsumable},
-                                  {4064, Target::Components, {}, fireResistantToDamageResistant},
-                                  {4068, Target::Components, {}, lockComponentPredicate},
-                                  {4068, Target::BlockEntity, {}, lockBlockEntityPredicate},
-                                  {4175, Target::Components, {}, equippableAssetRename},
-                                  {4175, Target::Components, {}, customModelDataExpand},
-                                  {4176, Target::BlockEntity, {}, invalidBlockEntityLock},
-                                  {4176, Target::Components, {}, invalidLockComponent},
-                                  {4181, Target::BlockEntity, "minecraft:furnace", furnaceBurnTime},
-                                  {4181, Target::BlockEntity, "minecraft:smoker", furnaceBurnTime},
-                                  {4181, Target::BlockEntity, "minecraft:blast_furnace", furnaceBurnTime},
-                                  {4294, Target::Palette, {}, creakingHeartState},
-                              });
+    fixes.insert(
+        fixes.end(),
+        {
+            {4054, Target::BlockEntity, "minecraft:banner", ominousBannerBlockEntity, "OminousBannerRarityFix"},
+            {4054, Target::ItemStack, {}, ominousBannerItem, "OminousBannerRarityFix"},
+            {4055, Target::Components, {}, attributeIdPrefix, "AttributeIdPrefixFix"},
+            {4055, Target::Entity, {}, attributeIdPrefixOfEntity, "AttributeIdPrefixFix"},
+            {4059, Target::Components, {}, foodToConsumable, "FoodToConsumableFix"},
+            {4064,
+             Target::Components,
+             {},
+             fireResistantToDamageResistant,
+             "FireResistantToDamageResistantComponentFix"},
+            {4068, Target::Components, {}, lockComponentPredicate, "LockComponentPredicateFix"},
+            {4068, Target::BlockEntity, {}, lockBlockEntityPredicate, "ContainerBlockEntityLockPredicateFix"},
+            {4175, Target::Components, {}, equippableAssetRename, "EquippableAssetRenameFix"},
+            {4175, Target::Components, {}, customModelDataExpand, "CustomModelDataExpandFix"},
+            {4176, Target::BlockEntity, {}, invalidBlockEntityLock, "InvalidBlockEntityLockFix"},
+            {4176, Target::Components, {}, invalidLockComponent, "InvalidLockComponentFix"},
+            {4181, Target::BlockEntity, "minecraft:furnace", furnaceBurnTime, "BlockEntityFurnaceBurnTimeFix"},
+            {4181, Target::BlockEntity, "minecraft:smoker", furnaceBurnTime, "BlockEntityFurnaceBurnTimeFix"},
+            {4181, Target::BlockEntity, "minecraft:blast_furnace", furnaceBurnTime, "BlockEntityFurnaceBurnTimeFix"},
+            {4294, Target::Palette, {}, creakingHeartState, "LegacyBlockPropertyRenameAndFix"},
+        });
 }
 
 } // namespace basalt::metamorph::datafix

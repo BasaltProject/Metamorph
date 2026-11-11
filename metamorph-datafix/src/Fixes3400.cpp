@@ -456,26 +456,29 @@ void grassItem(NbtCompound& stack, const Context&) {
 } // namespace
 
 void addFixesFrom3400(std::vector<Fix>& fixes) {
-    fixes.insert(fixes.end(), {
-                                  {3438, Target::BlockEntity, "minecraft:suspicious_sand", brushableBlockEntity},
-                                  {3438, Target::BlockEntity, "minecraft:brushable_block", brushableFields},
-                                  {3438, Target::LegacyStack, {}, potteryShards},
-                                  {3439, Target::BlockEntity, {}, doubleSidedSign},
-                                  {3447, Target::LegacyStack, {}, potterySherds},
-                                  {3448, Target::BlockEntity, "minecraft:decorated_pot", decoratedPotFields},
-                                  {3450, Target::Chunk, {}, remapChunkStatus},
-                                  {3451, Target::Chunk, {}, deleteLight},
-                                  {3564, Target::BlockEntity, {}, dropInvalidSignData},
-                                  {3568, Target::BlockEntity, "minecraft:beacon", mobEffectIdOfBeacon},
-                                  {3568, Target::Entity, {}, mobEffectIdOfEntity},
-                                  {3568, Target::LegacyStack, {}, mobEffectIdOfItem},
-                                  {3683, Target::Entity, {}, primedTntBlockState},
-                                  {3685, Target::Entity, {}, projectileStoredItem},
-                                  {3692, Target::Palette, {}, grassOfPalette},
-                                  {3692, Target::Entity, {}, grassOfEntity},
-                                  {3692, Target::BlockEntity, "minecraft:piston", grassOfPiston},
-                                  {3692, Target::LegacyStack, {}, grassItem},
-                              });
+    fixes.insert(
+        fixes.end(),
+        {
+            {3438, Target::BlockEntity, "minecraft:suspicious_sand", brushableBlockEntity, "BlockEntityRenameFix"},
+            {3438, Target::BlockEntity, "minecraft:brushable_block", brushableFields,
+             "EntityBrushableBlockFieldsRenameFix"},
+            {3438, Target::LegacyStack, {}, potteryShards, "ItemRenameFix"},
+            {3439, Target::BlockEntity, {}, doubleSidedSign, "BlockEntitySignDoubleSidedEditableTextFix"},
+            {3447, Target::LegacyStack, {}, potterySherds},
+            {3448, Target::BlockEntity, "minecraft:decorated_pot", decoratedPotFields, "DecoratedPotFieldRenameFix"},
+            {3450, Target::Chunk, {}, remapChunkStatus, "RemapChunkStatusFix"},
+            {3451, Target::Chunk, {}, deleteLight, "ChunkDeleteLightFix"},
+            {3564, Target::BlockEntity, {}, dropInvalidSignData, "DropInvalidSignDataFix"},
+            {3568, Target::BlockEntity, "minecraft:beacon", mobEffectIdOfBeacon, "MobEffectIdFix"},
+            {3568, Target::Entity, {}, mobEffectIdOfEntity, "MobEffectIdFix"},
+            {3568, Target::LegacyStack, {}, mobEffectIdOfItem, "MobEffectIdFix"},
+            {3683, Target::Entity, {}, primedTntBlockState, "PrimedTntBlockStateFixer"},
+            {3685, Target::Entity, {}, projectileStoredItem, "FixProjectileStoredItem"},
+            {3692, Target::Palette, {}, grassOfPalette},
+            {3692, Target::Entity, {}, grassOfEntity},
+            {3692, Target::BlockEntity, "minecraft:piston", grassOfPiston},
+            {3692, Target::LegacyStack, {}, grassItem, "ItemRenameFix"},
+        });
 }
 
 } // namespace basalt::metamorph::datafix

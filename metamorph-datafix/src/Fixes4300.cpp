@@ -147,11 +147,11 @@ void tridentAnimation(NbtCompound& components, const Context&) {
 
 void addFixesFrom4300(std::vector<Fix>& fixes) {
     fixes.insert(fixes.end(), {
-                                  {4307, Target::Components, {}, tooltipDisplay},
-                                  {4537, Target::Chunk, {}, deleteLight},
-                                  {4541, Target::Chunk, {}, renameChainBlock},
-                                  {4541, Target::ItemStack, {}, renameChainItem},
-                                  {4649, Target::Components, {}, tridentAnimation},
+                                  {4307, Target::Components, {}, tooltipDisplay, "TooltipDisplayComponentFix"},
+                                  {4537, Target::Chunk, {}, deleteLight, "ChunkDeleteLightFix"},
+                                  {4541, Target::Chunk, {}, renameChainBlock, "LegacyBlockRenameFix"},
+                                  {4541, Target::ItemStack, {}, renameChainItem, "ItemRenameFix"},
+                                  {4649, Target::Components, {}, tridentAnimation, "TridentAnimationFix"},
                               });
 }
 

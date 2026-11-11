@@ -1,6 +1,7 @@
 #include "FixSupport.hpp"
 
 #include <basalt/metamorph/datafix/LevelData.hpp>
+#include <basalt/wire/common/json/Json.hpp>
 
 #include <algorithm>
 #include <array>
@@ -11,6 +12,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace basalt::metamorph::datafix {
 namespace {
@@ -325,24 +327,33 @@ namespace {
     return NbtTag::ofIntArray({pos->getInt("X"), pos->getInt("Y"), pos->getInt("Z")});
 }
 
-// parity: `LegacyDimensionIdFix`, `MapBannerBlockPosFormatFix` and `BlockPosFormatAndRenamesFix` for map data.
-void mapData(NbtCompound& data, std::int32_t fromVersion) {
-    if (fromVersion < 2537) {
-        if (const NbtTag* dimension = data.find("dimension");
-            dimension != nullptr && dimension->get<std::string>() == nullptr) {
-            std::int32_t id = 0;
-            if (const auto* v = dimension->get<std::int8_t>(); v != nullptr) {
-                id = *v;
-            } else if (const auto* w = dimension->get<std::int32_t>(); w != nullptr) {
-                id = *w;
-            }
-            data.putString("dimension",
-                           id == -1 ? "minecraft:the_nether" : (id == 1 ? "minecraft:the_end" : "minecraft:overworld"));
-        }
-    }
-    if (fromVersion >= 3813) {
+// parity: `LegacyDimensionIdFix` for map data.
+void mapDimension(NbtCompound& data) {
+    const NbtTag* dimension = data.find("dimension");
+    if (dimension == nullptr || dimension->get<std::string>() != nullptr) {
         return;
     }
+    std::int32_t id = 0;
+    if (const auto* v = dimension->get<std::int8_t>(); v != nullptr) {
+        id = *v;
+    } else if (const auto* w = dimension->get<std::int32_t>(); w != nullptr) {
+        id = *w;
+    }
+    data.putString("dimension",
+                   id == -1 ? "minecraft:the_nether" : (id == 1 ? "minecraft:the_end" : "minecraft:overworld"));
+}
+
+// parity: `MapBannerBlockPosFormatFix`.
+void mapBannerPositions(NbtCompound& data) {
+    forEachCompound(data, "banners", [](NbtCompound& banner) {
+        if (const NbtTag* pos = banner.find("Pos"); pos != nullptr) {
+            banner.set("Pos", blockPosOf(*pos));
+        }
+    });
+}
+
+// parity: `BlockPosFormatAndRenamesFix` for map data.
+void mapRenames(NbtCompound& data) {
     const auto renamed = [](NbtCompound& entry, std::string_view from, std::string_view to, bool asBlockPos) {
         NbtTag* held = entry.find(from);
         if (held == nullptr) {
@@ -364,18 +375,227 @@ void mapData(NbtCompound& data, std::int32_t fromVersion) {
     });
 }
 
+// parity: `SavedDataUUIDFix`.
+void raidHeroUuids(NbtCompound& data) {
+    forEachCompound(data, "Raids", [](NbtCompound& raid) {
+        NbtTag* held = raid.find("HeroesOfTheVillage");
+        NbtList* heroes = held == nullptr ? nullptr : held->get<NbtList>();
+        if (heroes == nullptr) {
+            return;
+        }
+        std::vector<NbtTag> fixed;
+        for (const NbtTag& hero : *heroes) {
+            const NbtCompound* fields = hero.get<NbtCompound>();
+            std::optional<NbtTag> uuid;
+            if (fields != nullptr) {
+                const auto most = fields->find("UUIDMost");
+                const auto least = fields->find("UUIDLeast");
+                const auto whole = [](const NbtTag* tag) -> std::int64_t {
+                    const auto* v = tag == nullptr ? nullptr : tag->get<std::int64_t>();
+                    return v == nullptr ? 0 : *v;
+                };
+                if (whole(most) != 0 && whole(least) != 0) {
+                    const std::int64_t high = whole(most);
+                    const std::int64_t low = whole(least);
+                    uuid = NbtTag::ofIntArray({static_cast<std::int32_t>(high >> 32), static_cast<std::int32_t>(high),
+                                               static_cast<std::int32_t>(low >> 32), static_cast<std::int32_t>(low)});
+                }
+            }
+            fixed.push_back(uuid.has_value() ? *uuid : hero);
+        }
+        *heroes = NbtList{fixed.empty() ? wire::nbt::NbtType::End : fixed.front().type(), std::move(fixed)};
+    });
+}
+
+// parity: `ScoreboardDisplayNameFix`, a plain display name as a text component in JSON.
+void scoreboardDisplayNames(NbtCompound& data) {
+    const auto wrap = [](NbtCompound& entry) {
+        NbtTag* name = entry.find("DisplayName");
+        const std::string* text = name == nullptr ? nullptr : name->get<std::string>();
+        if (text == nullptr) {
+            return;
+        }
+        wire::common::JsonObject json;
+        json.set("text", wire::common::JsonValue::of(*text));
+        *name = NbtTag::ofString(wire::common::writeJson(wire::common::JsonValue::ofObject(std::move(json))));
+    };
+    forEachCompound(data, "Objectives", wrap);
+    forEachCompound(data, "Teams", wrap);
+}
+
+// parity: `ObjectiveRenderTypeFix`.
+void objectiveRenderTypes(NbtCompound& data) {
+    forEachCompound(data, "Objectives", [](NbtCompound& objective) {
+        if (objective.find("RenderType") != nullptr && objective.find("RenderType")->get<std::string>() != nullptr) {
+            return;
+        }
+        objective.putString("RenderType", objective.getString("CriteriaName") == "health" ? "hearts" : "integer");
+    });
+}
+
+// parity: `MapIdFix` over the whole index file.
+void wrapMapIndex(NbtCompound& root) {
+    NbtCompound wrapped;
+    wrapped.set("data", NbtTag::ofCompound(root));
+    root = std::move(wrapped);
+}
+
+// parity: `ForcedChunkToTicketFix`.
+void forcedChunksToTickets(NbtCompound& data) {
+    const NbtTag* forced = data.find("Forced");
+    if (forced == nullptr) {
+        return;
+    }
+    std::vector<std::int64_t> chunks;
+    if (const auto* array = forced->get<std::vector<std::int64_t>>(); array != nullptr) {
+        chunks = *array;
+    } else if (const NbtList* list = forced->get<NbtList>(); list != nullptr) {
+        for (const NbtTag& element : *list) {
+            if (const auto* v = element.get<std::int64_t>(); v != nullptr) {
+                chunks.push_back(*v);
+            }
+        }
+    }
+    std::vector<NbtTag> tickets;
+    for (const std::int64_t chunk : chunks) {
+        NbtCompound ticket;
+        ticket.putString("type", "minecraft:forced");
+        ticket.putInt("level", 31);
+        ticket.putLong("ticks_left", 0);
+        ticket.putLong("chunk_pos", chunk);
+        tickets.push_back(NbtTag::ofCompound(std::move(ticket)));
+    }
+    data.remove("Forced");
+    data.set("tickets", NbtTag::ofList(NbtList{tickets.empty() ? wire::nbt::NbtType::End : wire::nbt::NbtType::Compound,
+                                               std::move(tickets)}));
+}
+
+// parity: `ChunkTicketUnpackPosFix`.
+void ticketChunkPositions(NbtCompound& data) {
+    forEachCompound(data, "tickets", [](NbtCompound& ticket) {
+        const NbtTag* pos = ticket.find("chunk_pos");
+        const auto* packed = pos == nullptr ? nullptr : pos->get<std::int64_t>();
+        const std::int64_t key = packed == nullptr ? 0 : *packed;
+        const auto x = static_cast<std::int32_t>(static_cast<std::uint64_t>(key) & 0xFFFFFFFFU);
+        const auto z = static_cast<std::int32_t>((static_cast<std::uint64_t>(key) >> 32) & 0xFFFFFFFFU);
+        ticket.set("chunk_pos", NbtTag::ofIntArray({x, z}));
+    });
+}
+
+// parity: `WorldBorderWarningTimeFix`.
+void borderWarningTime(NbtCompound& data) {
+    if (const NbtTag* time = data.find("warning_time"); time != nullptr) {
+        std::int32_t seconds = 15;
+        if (const auto* v = time->get<std::int32_t>(); v != nullptr) {
+            seconds = *v;
+        } else if (const auto* b = time->get<std::int8_t>(); b != nullptr) {
+            seconds = *b;
+        } else if (const auto* sh = time->get<std::int16_t>(); sh != nullptr) {
+            seconds = *sh;
+        }
+        data.putInt("warning_time", seconds * 20);
+    }
+}
+
+using DataFix = void (*)(NbtCompound&);
+
+Fix onSavedData(std::int32_t version, std::string_view file, DataFix fix, std::string_view step) {
+    return {version,
+            Target::Root,
+            {},
+            [file, fix](NbtCompound& root, const Context& context) {
+                if (context.savedData != file) {
+                    return;
+                }
+                if (NbtTag* held = root.find("data"); held != nullptr && held->get<NbtCompound>() != nullptr) {
+                    fix(*held->get<NbtCompound>());
+                }
+            },
+            step,
+            domainBit(Domain::SavedData)};
+}
+
+Fix onSavedContainer(std::int32_t version, std::string_view file, DataFix fix, std::string_view step) {
+    return {version,
+            Target::Root,
+            {},
+            [file, fix](NbtCompound& root, const Context& context) {
+                if (context.savedData == file) {
+                    fix(root);
+                }
+            },
+            step,
+            domainBit(Domain::SavedData)};
+}
+
 } // namespace
 
+bool savedDataStepFits(std::string_view step, std::string_view savedData) {
+    struct Entry {
+        std::string_view step;
+        std::string_view file;
+    };
+
+    static constexpr std::array kEntries{
+        Entry{"SavedDataUUIDFix", "raids"},
+        Entry{"RaidRenamesDataFix", "raids"},
+        Entry{"RandomSequenceSettingsFix", "random_sequences"},
+        Entry{"ScoreboardDisplayNameFix", "scoreboard"},
+        Entry{"ObjectiveRenderTypeFix", "scoreboard"},
+        Entry{"ScoreboardDisplaySlotFix", "scoreboard"},
+        Entry{"MapIdFix", "map_index"},
+        Entry{"ForcedChunkToTicketFix", "tickets"},
+        Entry{"ChunkTicketUnpackPosFix", "tickets"},
+        Entry{"WorldBorderWarningTimeFix", "world_border"},
+        Entry{"LegacyDimensionIdFix", "map"},
+        Entry{"MapBannerBlockPosFormatFix", "map"},
+        Entry{"BlockPosFormatAndRenamesFix", "map"},
+        Entry{"IglooMetadataRemovalFix", "structure_feature_indices"},
+        Entry{"ChunkStructuresTemplateRenameFix", "structure_feature_indices"},
+        Entry{"NewVillageFix", "structure_feature_indices"},
+        Entry{"StructureReferenceCountFix", "structure_feature_indices"},
+        Entry{"SavedDataFeaturePoolElementFix", "structure_feature_indices"},
+        Entry{"UnflattenTextComponentFix", "scoreboard"},
+        Entry{"UnflattenTextComponentFix", "custom_boss_events"},
+        Entry{"UnflattenTextComponentFix", "map"},
+        Entry{"LegacyHoverEventFix", "scoreboard"},
+        Entry{"LegacyHoverEventFix", "custom_boss_events"},
+        Entry{"LegacyHoverEventFix", "map"},
+        Entry{"TextComponentStringifiedFlagsFix", "scoreboard"},
+        Entry{"TextComponentStringifiedFlagsFix", "custom_boss_events"},
+        Entry{"TextComponentStringifiedFlagsFix", "map"},
+        Entry{"TextComponentHoverAndClickEventFix", "scoreboard"},
+        Entry{"TextComponentHoverAndClickEventFix", "custom_boss_events"},
+        Entry{"TextComponentHoverAndClickEventFix", "map"},
+    };
+    return std::ranges::any_of(kEntries,
+                               [&](const Entry& entry) { return entry.step == step && entry.file == savedData; });
+}
+
+void addSavedDataFixes(std::vector<Fix>& fixes) {
+    fixes.push_back(onSavedData(1514, "scoreboard", scoreboardDisplayNames, "ScoreboardDisplayNameFix"));
+    fixes.push_back(onSavedData(1514, "scoreboard", objectiveRenderTypes, "ObjectiveRenderTypeFix"));
+    fixes.push_back(onSavedContainer(1925, "map_index", wrapMapIndex, "MapIdFix"));
+    fixes.push_back(onSavedData(2514, "raids", raidHeroUuids, "SavedDataUUIDFix"));
+    fixes.push_back(onSavedData(2537, "map", mapDimension, "LegacyDimensionIdFix"));
+    fixes.push_back(onSavedData(3565, "random_sequences", randomSequenceSettings, "RandomSequenceSettingsFix"));
+    fixes.push_back(onSavedData(3566, "scoreboard", scoreboardDisplaySlots, "ScoreboardDisplaySlotFix"));
+    fixes.push_back(onSavedData(3807, "map", mapBannerPositions, "MapBannerBlockPosFormatFix"));
+    fixes.push_back(onSavedData(3813, "map", mapRenames, "BlockPosFormatAndRenamesFix"));
+    fixes.push_back(onSavedData(4297, "tickets", forcedChunksToTickets, "ForcedChunkToTicketFix"));
+    fixes.push_back(onSavedData(4309, "raids", raidRenames, "RaidRenamesDataFix"));
+    fixes.push_back(onSavedData(4309, "tickets", ticketChunkPositions, "ChunkTicketUnpackPosFix"));
+    fixes.push_back(onSavedData(4657, "world_border", borderWarningTime, "WorldBorderWarningTimeFix"));
+}
+
 void upgradeSavedData(std::string_view name, NbtCompound& data, std::int32_t fromVersion) {
-    if (name == "random_sequences" && fromVersion < 3565) {
-        randomSequenceSettings(data);
-    } else if (name == "raids" && fromVersion < 4309) {
-        raidRenames(data);
-    } else if (name == "map") {
-        mapData(data, fromVersion);
-    } else if (name == "scoreboard" && fromVersion < 3566) {
-        scoreboardDisplaySlots(data);
-    }
+    NbtCompound container;
+    container.set("data", NbtTag::ofCompound(std::move(data)));
+    Context context;
+    context.savedData = name;
+    (void)upgrade(Domain::SavedData, container, fromVersion, context);
+    const NbtTag* fixed = container.find("data");
+    data = fixed != nullptr && fixed->get<NbtCompound>() != nullptr ? *fixed->get<NbtCompound>() : NbtCompound{};
 }
 
 } // namespace basalt::metamorph::datafix

@@ -22,6 +22,8 @@ using wire::nbt::NbtType;
 
 using TextEdit = std::function<void(NbtTag&)>;
 
+constexpr std::uint32_t kTextDomains = kTreeDomains | domainBit(Domain::SavedData);
+
 /// parity: `JsonOps.convertTo(NbtOps)`, where a list of mixed kinds wraps its non-compounds as `{"": value}`.
 [[nodiscard]] NbtTag jsonToNbt(const JsonValue& json) {
     if (const bool* flag = json.get<bool>(); flag != nullptr) {
@@ -160,19 +162,72 @@ void textInSign(NbtCompound& side, const TextEdit& edit) {
     }
 }
 
-/// Every place a chunk or a player keeps a text component, whatever shape it is in.
-void forEachText(NbtCompound& root, const TextEdit& edit) {
-    forEachComponents(root, [&edit](NbtCompound& components) { textInComponents(components, edit); });
-    forEachCompound(root, "block_entities", [&edit](NbtCompound& blockEntity) {
-        if (NbtTag* name = blockEntity.find("CustomName"); name != nullptr) {
+void textInEntity(NbtCompound& entity, const TextEdit& edit) {
+    for (const std::string_view key : {"CustomName", "LastOutput"}) {
+        if (NbtTag* text = entity.find(key); text != nullptr) {
+            edit(*text);
+        }
+    }
+}
+
+void textInScoreboard(NbtCompound& data, const TextEdit& edit) {
+    forEachCompound(data, "Objectives", [&edit](NbtCompound& objective) {
+        if (NbtTag* name = objective.find("DisplayName"); name != nullptr) {
             edit(*name);
+        }
+    });
+    forEachCompound(data, "Teams", [&edit](NbtCompound& team) {
+        for (const std::string_view key : {"MemberNamePrefix", "MemberNameSuffix", "DisplayName"}) {
+            if (NbtTag* text = team.find(key); text != nullptr) {
+                edit(*text);
+            }
+        }
+    });
+}
+
+/// Every place a chunk, a player or a text-bearing saved data file keeps a text component, whatever shape it is in.
+void forEachText(NbtCompound& root, const Context& context, const TextEdit& edit) {
+    if (!context.savedData.empty()) {
+        NbtCompound* data = root.find("data") == nullptr ? nullptr : root.find("data")->get<NbtCompound>();
+        if (data == nullptr) {
+            return;
+        }
+        if (context.savedData == "scoreboard") {
+            textInScoreboard(*data, edit);
+        } else if (context.savedData == "custom_boss_events") {
+            for (std::size_t i = 0; i < data->size(); ++i) {
+                const std::string key = data->names()[i];
+                NbtTag* held = data->find(key);
+                if (NbtCompound* event = held == nullptr ? nullptr : held->get<NbtCompound>(); event != nullptr) {
+                    if (NbtTag* name = event->find("Name"); name != nullptr) {
+                        edit(*name);
+                    }
+                }
+            }
+        }
+        return;
+    }
+    forEachComponents(root, [&edit](NbtCompound& components) { textInComponents(components, edit); });
+    const auto inBlockEntity = [&edit](NbtCompound& blockEntity) {
+        for (const std::string_view key : {"CustomName", "LastOutput"}) {
+            if (NbtTag* name = blockEntity.find(key); name != nullptr) {
+                edit(*name);
+            }
         }
         for (const std::string_view face : {"front_text", "back_text"}) {
             if (NbtTag* side = blockEntity.find(face); side != nullptr && side->get<NbtCompound>() != nullptr) {
                 textInSign(*side->get<NbtCompound>(), edit);
             }
         }
-    });
+    };
+    forEachCompound(root, "block_entities", inBlockEntity);
+    if (NbtTag* level = root.find("Level"); level != nullptr && level->get<NbtCompound>() != nullptr) {
+        forEachCompound(*level->get<NbtCompound>(), "TileEntities", inBlockEntity);
+    }
+    for (const Domain domain : {Domain::Chunk, Domain::Entities}) {
+        forEachEntity(domain, root, [&edit](NbtCompound& entity) { textInEntity(entity, edit); });
+    }
+    textInEntity(root, edit);
 }
 
 /// A text component and the components it nests through `extra`, `separator` and hover text.
@@ -207,13 +262,13 @@ void walkComponent(NbtTag& tag, const std::function<void(NbtCompound&)>& edit) {
     }
 }
 
-void walkAllText(NbtCompound& root, const std::function<void(NbtCompound&)>& edit) {
-    forEachText(root, [&edit](NbtTag& text) { walkComponent(text, edit); });
+void walkAllText(NbtCompound& root, const Context& context, const std::function<void(NbtCompound&)>& edit) {
+    forEachText(root, context, [&edit](NbtTag& text) { walkComponent(text, edit); });
 }
 
 // parity: `UnflattenTextComponentFix`.
-void unflattenText(NbtCompound& root, const Context&) {
-    forEachText(root, [](NbtTag& text) {
+void unflattenText(NbtCompound& root, const Context& context) {
+    forEachText(root, context, [](NbtTag& text) {
         const std::string* json = text.get<std::string>();
         if (json == nullptr) {
             return;
@@ -232,8 +287,8 @@ void stringToBool(NbtCompound& component, std::string_view key) {
 }
 
 // parity: `LegacyHoverEventFix`.
-void legacyHoverEvent(NbtCompound& root, const Context&) {
-    walkAllText(root, [](NbtCompound& component) {
+void legacyHoverEvent(NbtCompound& root, const Context& context) {
+    walkAllText(root, context, [](NbtCompound& component) {
         NbtTag* hover = component.find("hoverEvent");
         NbtCompound* event = hover == nullptr ? nullptr : hover->get<NbtCompound>();
         if (event == nullptr || !event->contains("value")) {
@@ -253,8 +308,8 @@ void legacyHoverEvent(NbtCompound& root, const Context&) {
 }
 
 // parity: `TextComponentStringifiedFlagsFix`.
-void stringifiedFlags(NbtCompound& root, const Context&) {
-    walkAllText(root, [](NbtCompound& component) {
+void stringifiedFlags(NbtCompound& root, const Context& context) {
+    walkAllText(root, context, [](NbtCompound& component) {
         for (const std::string_view flag : {"bold", "italic", "underlined", "strikethrough", "obfuscated"}) {
             stringToBool(component, flag);
         }
@@ -346,8 +401,8 @@ void fixHoverEvent(NbtCompound& event) {
 }
 
 // parity: `TextComponentHoverAndClickEventFix`.
-void hoverAndClickEvents(NbtCompound& root, const Context&) {
-    walkAllText(root, [](NbtCompound& component) {
+void hoverAndClickEvents(NbtCompound& root, const Context& context) {
+    walkAllText(root, context, [](NbtCompound& component) {
         if (NbtTag* hover = component.find("hoverEvent"); hover != nullptr) {
             if (NbtCompound* event = hover->get<NbtCompound>(); event != nullptr) {
                 fixHoverEvent(*event);
@@ -368,12 +423,13 @@ void hoverAndClickEvents(NbtCompound& root, const Context&) {
 } // namespace
 
 void addTextFixes(std::vector<Fix>& fixes) {
-    fixes.insert(fixes.end(), {
-                                  {4290, Target::Root, {}, unflattenText},
-                                  {4291, Target::Root, {}, legacyHoverEvent},
-                                  {4291, Target::Root, {}, stringifiedFlags},
-                                  {4292, Target::Root, {}, hoverAndClickEvents},
-                              });
+    fixes.insert(fixes.end(),
+                 {
+                     {4290, Target::Root, {}, unflattenText, "UnflattenTextComponentFix", kTextDomains},
+                     {4291, Target::Root, {}, legacyHoverEvent, "LegacyHoverEventFix", kTextDomains},
+                     {4291, Target::Root, {}, stringifiedFlags, "TextComponentStringifiedFlagsFix", kTextDomains},
+                     {4292, Target::Root, {}, hoverAndClickEvents, "TextComponentHoverAndClickEventFix", kTextDomains},
+                 });
 }
 
 } // namespace basalt::metamorph::datafix

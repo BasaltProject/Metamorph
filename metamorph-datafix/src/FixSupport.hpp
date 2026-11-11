@@ -13,12 +13,22 @@ namespace basalt::metamorph::datafix {
 /// `Root` runs on the whole tree whatever the domain, for fixes that find their own places.
 enum class Target : std::uint8_t { Chunk, BlockEntity, ItemStack, LegacyStack, Components, Palette, Root, Entity };
 
+[[nodiscard]] constexpr std::uint32_t domainBit(Domain domain) { return 1U << static_cast<std::uint32_t>(domain); }
+
+/// The domains a fix is written for unless it says otherwise: the trees that hold chunks, players and entities.
+inline constexpr std::uint32_t kTreeDomains =
+    domainBit(Domain::Chunk) | domainBit(Domain::Player) | domainBit(Domain::Entities);
+
 struct Fix {
     std::int32_t version = 0;
     Target target = Target::Chunk;
     /// The block entity or entity id a fix is for; empty means every one.
     std::string_view blockEntityId;
     std::function<void(wire::nbt::NbtCompound&, const Context&)> apply;
+    /// The vanilla class this runs, as `steps()` lists it; empty for an unnamed one.
+    std::string_view name;
+    /// For `kTreeDomains` fixes the engine reaches the other domains through their subtrees; any other mask is exact.
+    std::uint32_t domains = kTreeDomains;
 };
 
 [[nodiscard]] std::string namespaced(std::string_view text);
@@ -63,5 +73,29 @@ void addFixesFrom4000(std::vector<Fix>& fixes);
 void addFixesFrom4300(std::vector<Fix>& fixes);
 
 void addFixesFrom4996(std::vector<Fix>& fixes);
+
+void addLevelFixes(std::vector<Fix>& fixes);
+
+void addWorldGenFixes(std::vector<Fix>& fixes);
+
+void addStructureFixes(std::vector<Fix>& fixes);
+
+void addOptionsFixes(std::vector<Fix>& fixes);
+
+void addLegacyGapFixes(std::vector<Fix>& fixes);
+
+void addSavedDataFixes(std::vector<Fix>& fixes);
+
+/// A template as a chunk holding its palettes as sections, so the chunk fixes that reach block states apply to it.
+[[nodiscard]] wire::nbt::NbtCompound structureAsChunk(const wire::nbt::NbtCompound& structure);
+
+/// Takes the palettes, block entities and entities a fixed chunk holds back into the template it came from.
+void chunkIntoStructure(const wire::nbt::NbtCompound& chunk, wire::nbt::NbtCompound& structure);
+
+/// Whether a vanilla saved data fix step concerns the saved data file `savedData`.
+[[nodiscard]] bool savedDataStepFits(std::string_view step, std::string_view savedData);
+
+/// The `Fix` list the engine runs, sorted by version.
+[[nodiscard]] const std::vector<Fix>& allFixes();
 
 } // namespace basalt::metamorph::datafix

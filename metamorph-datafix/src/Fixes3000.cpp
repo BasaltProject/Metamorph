@@ -258,21 +258,22 @@ void spawnEgg(NbtCompound& stack, const Context&) { spawnEggOf(stack, "minecraft
 void convertSpawnEgg(NbtCompound& stack, std::string_view itemType) { spawnEggOf(stack, itemType); }
 
 void addFixesFrom3000(std::vector<Fix>& fixes) {
-    fixes.insert(fixes.end(), {
-                                  {3077, Target::Chunk, {}, deleteIgnoredLight},
-                                  {3086, Target::Entity, {}, catVariant},
-                                  {3087, Target::Entity, {}, frogVariant},
-                                  {3090, Target::Entity, {}, paintingFields},
-                                  {3093, Target::Entity, {}, goatHorns},
-                                  {3094, Target::LegacyStack, {}, goatHornId},
-                                  {3097, Target::LegacyStack, {}, filteredBooks},
-                                  {3097, Target::BlockEntity, {}, filteredSigns},
-                                  {3097, Target::Entity, {}, britishShorthair},
-                                  {3108, Target::Chunk, {}, blendingDataOutsideOverworld},
-                                  {3209, Target::LegacyStack, {}, spawnEgg},
-                                  {3322, Target::Entity, {}, effectDurationOfEntity},
-                                  {3322, Target::LegacyStack, {}, effectDurationOfItem},
-                              });
+    fixes.insert(fixes.end(),
+                 {
+                     {3077, Target::Chunk, {}, deleteIgnoredLight, "ChunkDeleteIgnoredLightDataFix"},
+                     {3086, Target::Entity, {}, catVariant},
+                     {3087, Target::Entity, {}, frogVariant},
+                     {3090, Target::Entity, {}, paintingFields, "EntityFieldsRenameFix"},
+                     {3093, Target::Entity, {}, goatHorns, "EntityGoatMissingStateFix"},
+                     {3094, Target::LegacyStack, {}, goatHornId, "GoatHornIdFix"},
+                     {3097, Target::LegacyStack, {}, filteredBooks, "FilteredBooksFix"},
+                     {3097, Target::BlockEntity, {}, filteredSigns, "FilteredSignsFix"},
+                     {3097, Target::Entity, {}, britishShorthair, "VariantRenameFix"},
+                     {3108, Target::Chunk, {}, blendingDataOutsideOverworld, "BlendingDataRemoveFromNetherEndFix"},
+                     {3209, Target::LegacyStack, {}, spawnEgg},
+                     {3322, Target::Entity, {}, effectDurationOfEntity, "EffectDurationFix"},
+                     {3322, Target::LegacyStack, {}, effectDurationOfItem, "EffectDurationFix"},
+                 });
 }
 
 } // namespace basalt::metamorph::datafix

@@ -680,81 +680,83 @@ void injectBedBlockEntities(NbtCompound& chunk, const Context&) {
 } // namespace
 
 void addFixesFrom0100(std::vector<Fix>& fixes) {
-    fixes.insert(fixes.end(), {
-                                  {100, Target::Entity, {}, equipmentSlots},
-                                  {101,
-                                   Target::Entity,
-                                   {},
-                                   [](NbtCompound& e, const Context& c) {
-                                       if (e.getString("id") == "Villager") {
-                                           villagerPicksUpLoot(e, c);
-                                       }
-                                   }},
-                                  {102, Target::Root, {}, itemIds},
-                                  {102,
-                                   Target::Root,
-                                   {},
-                                   [](NbtCompound& root, const Context& c) {
-                                       forEachNamedStack(root, [&c](NbtCompound& s) { itemPotions(s, c); });
-                                   }},
-                                  {105,
-                                   Target::Root,
-                                   {},
-                                   [](NbtCompound& root, const Context& c) {
-                                       forEachNamedStack(root, [&c](NbtCompound& s) { itemSpawnEggs(s, c); });
-                                   }},
-                                  {106, Target::BlockEntity, "MobSpawner", spawnerEntityIds},
-                                  {107, Target::Entity, {}, minecartIds},
-                                  {108, Target::Entity, {}, stringUuids},
-                                  {109, Target::Entity, {}, healthAsFloat},
-                                  {110, Target::Entity, {}, horseSaddle},
-                                  {111, Target::Entity, {}, hangingDirections},
-                                  {113, Target::Entity, {}, redundantChances},
-                                  {135, Target::Entity, {}, ridingToPassengers},
-                                  {143, Target::Entity, {}, tippedArrow},
-                                  {147, Target::Entity, {}, armorStandSilent},
-                                  {165, Target::BlockEntity, "Sign", signText},
-                                  {165,
-                                   Target::Root,
-                                   {},
-                                   [](NbtCompound& root, const Context& c) {
-                                       forEachNamedStack(root, [&c](NbtCompound& s) { bookPages(s, c); });
-                                   }},
-                                  {502, Target::Entity, {}, zombieVillagerType},
-                                  {700, Target::Entity, {}, elderGuardian},
-                                  {701, Target::Entity, {}, skeletonSplit},
-                                  {702, Target::Entity, {}, zombieSplit},
-                                  {703, Target::Entity, {}, horseSplit},
-                                  {704, Target::BlockEntity, {}, blockEntityIds},
-                                  {705, Target::Entity, {}, entityIds},
-                                  {804,
-                                   Target::Root,
-                                   {},
-                                   [](NbtCompound& root, const Context& c) {
-                                       forEachNamedStack(root, [&c](NbtCompound& s) { bannerItems(s, c); });
-                                   }},
-                                  {806,
-                                   Target::Root,
-                                   {},
-                                   [](NbtCompound& root, const Context& c) {
-                                       forEachNamedStack(root, [&c](NbtCompound& s) { waterPotions(s, c); });
-                                   }},
-                                  {808, Target::Entity, "minecraft:shulker", shulkerColor},
-                                  {813,
-                                   Target::Root,
-                                   {},
-                                   [](NbtCompound& root, const Context& c) {
-                                       forEachNamedStack(root, [&c](NbtCompound& s) { shulkerBoxItems(s, c); });
-                                   }},
-                                  {813, Target::BlockEntity, "minecraft:shulker_box", shulkerBoxColor},
-                                  {1125, Target::Chunk, {}, injectBedBlockEntities},
-                                  {1125,
-                                   Target::Root,
-                                   {},
-                                   [](NbtCompound& root, const Context& c) {
-                                       forEachNamedStack(root, [&c](NbtCompound& s) { bedItems(s, c); });
-                                   }},
-                              });
+    fixes.insert(
+        fixes.end(),
+        {
+            {100, Target::Entity, {}, equipmentSlots, "EntityEquipmentToArmorAndHandFix"},
+            {101,
+             Target::Entity,
+             {},
+             [](NbtCompound& e, const Context& c) {
+                 if (e.getString("id") == "Villager") {
+                     villagerPicksUpLoot(e, c);
+                 }
+             }},
+            {102, Target::Root, {}, itemIds, "ItemIdFix"},
+            {102,
+             Target::Root,
+             {},
+             [](NbtCompound& root, const Context& c) {
+                 forEachNamedStack(root, [&c](NbtCompound& s) { itemPotions(s, c); });
+             }},
+            {105,
+             Target::Root,
+             {},
+             [](NbtCompound& root, const Context& c) {
+                 forEachNamedStack(root, [&c](NbtCompound& s) { itemSpawnEggs(s, c); });
+             }},
+            {106, Target::BlockEntity, "MobSpawner", spawnerEntityIds, "MobSpawnerEntityIdentifiersFix"},
+            {107, Target::Entity, {}, minecartIds, "EntityMinecartIdentifiersFix"},
+            {108, Target::Entity, {}, stringUuids, "EntityStringUuidFix"},
+            {109, Target::Entity, {}, healthAsFloat, "EntityHealthFix"},
+            {110, Target::Entity, {}, horseSaddle, "EntityHorseSaddleFix"},
+            {111, Target::Entity, {}, hangingDirections, "EntityPaintingItemFrameDirectionFix"},
+            {113, Target::Entity, {}, redundantChances, "EntityRedundantChanceTagsFix"},
+            {135, Target::Entity, {}, ridingToPassengers, "EntityRidingToPassengersFix"},
+            {143, Target::Entity, {}, tippedArrow, "EntityTippedArrowFix"},
+            {147, Target::Entity, {}, armorStandSilent, "EntityArmorStandSilentFix"},
+            {165, Target::BlockEntity, "Sign", signText, "SignTextStrictJsonFix"},
+            {165,
+             Target::Root,
+             {},
+             [](NbtCompound& root, const Context& c) {
+                 forEachNamedStack(root, [&c](NbtCompound& s) { bookPages(s, c); });
+             }},
+            {502, Target::Entity, {}, zombieVillagerType, "EntityZombieVillagerTypeFix"},
+            {700, Target::Entity, {}, elderGuardian, "EntityElderGuardianSplitFix"},
+            {701, Target::Entity, {}, skeletonSplit, "EntitySkeletonSplitFix"},
+            {702, Target::Entity, {}, zombieSplit, "EntityZombieSplitFix"},
+            {703, Target::Entity, {}, horseSplit, "EntityHorseSplitFix"},
+            {704, Target::BlockEntity, {}, blockEntityIds, "BlockEntityIdFix"},
+            {705, Target::Entity, {}, entityIds, "EntityIdFix"},
+            {804,
+             Target::Root,
+             {},
+             [](NbtCompound& root, const Context& c) {
+                 forEachNamedStack(root, [&c](NbtCompound& s) { bannerItems(s, c); });
+             }},
+            {806,
+             Target::Root,
+             {},
+             [](NbtCompound& root, const Context& c) {
+                 forEachNamedStack(root, [&c](NbtCompound& s) { waterPotions(s, c); });
+             }},
+            {808, Target::Entity, "minecraft:shulker", shulkerColor, "EntityShulkerColorFix"},
+            {813,
+             Target::Root,
+             {},
+             [](NbtCompound& root, const Context& c) {
+                 forEachNamedStack(root, [&c](NbtCompound& s) { shulkerBoxItems(s, c); });
+             }},
+            {813, Target::BlockEntity, "minecraft:shulker_box", shulkerBoxColor, "BlockEntityShulkerBoxColorFix"},
+            {1125, Target::Chunk, {}, injectBedBlockEntities, "ChunkBedBlockEntityInjecterFix"},
+            {1125,
+             Target::Root,
+             {},
+             [](NbtCompound& root, const Context& c) {
+                 forEachNamedStack(root, [&c](NbtCompound& s) { bedItems(s, c); });
+             }},
+        });
 }
 
 } // namespace basalt::metamorph::datafix
