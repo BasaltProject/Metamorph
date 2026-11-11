@@ -2,6 +2,8 @@
 
 #include "LegacyBlocks.hpp"
 
+#include <basalt/metamorph/datafix/DataFixer.hpp>
+
 #include <array>
 #include <vector>
 
@@ -86,3 +88,12 @@ std::optional<std::string> upgradeBlockName(std::string_view oldName) {
 }
 
 } // namespace basalt::metamorph::datafix::legacy
+
+namespace basalt::metamorph::datafix {
+
+LegacyBlockState legacyBlockState(std::int32_t id) {
+    const legacy::State& state = legacy::stateOf(id);
+    return {state.name, state.properties};
+}
+
+} // namespace basalt::metamorph::datafix

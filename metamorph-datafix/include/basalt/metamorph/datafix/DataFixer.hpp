@@ -3,6 +3,7 @@
 #include <basalt/wire/nbt/NbtTag.hpp>
 
 #include <cstdint>
+#include <map>
 #include <span>
 #include <string>
 #include <string_view>
@@ -85,5 +86,14 @@ struct SchemaInfo {
 /// Runs the native step `name` that vanilla registered at `versionKey`; false when this build has no such step.
 [[nodiscard]] bool applyStep(std::string_view name, std::int32_t versionKey, Domain domain,
                              wire::nbt::NbtCompound& root, const Context& context = {});
+
+/// A block state with its name and properties.
+struct LegacyBlockState {
+    std::string name;
+    std::map<std::string, std::string> properties;
+};
+
+/// parity: `BlockStateData.getTag`, the 1.13 state of the pre-1.13 `block << 4 | data`.
+[[nodiscard]] LegacyBlockState legacyBlockState(std::int32_t id);
 
 } // namespace basalt::metamorph::datafix
