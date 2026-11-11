@@ -3,6 +3,7 @@
 #include <basalt/wire/nbt/NbtTag.hpp>
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 namespace basalt::metamorph::datafix {
@@ -16,7 +17,7 @@ namespace basalt::metamorph::datafix {
 /// parity: `LevelDatToSavedDataPreparationFix.fixDragonFight`, the `DragonFight` of an old `level.dat` as saved data.
 [[nodiscard]] wire::nbt::NbtCompound dragonFightOfLegacy(const wire::nbt::NbtCompound& legacy);
 
-/// parity: the `SAVED_DATA_*` fixes from `fromVersion` on, for random sequences, raids and the scoreboard only.
-void upgradeSavedData(std::string_view name, wire::nbt::NbtCompound& data, std::int32_t fromVersion);
+/// parity: the `SAVED_DATA_*` fixes of the saved data file `name` from `fromVersion` on; returns a refusal or empty.
+[[nodiscard]] std::string upgradeSavedData(std::string_view name, wire::nbt::NbtCompound& data, std::int32_t fromVersion);
 
 } // namespace basalt::metamorph::datafix

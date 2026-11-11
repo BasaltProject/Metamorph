@@ -33,7 +33,11 @@ void upgradeChunks(region::LinearRegion& region, datafix::Domain domain, Counts&
             if (version <= 0 || version >= datafix::kCurrentVersion) {
                 continue;
             }
-            datafix::upgrade(domain, *root, version);
+            if (const std::string refusal = datafix::upgrade(domain, *root, version); !refusal.empty()) {
+                std::cerr << "chunk " << x << ' ' << z << ": " << refusal << '\n';
+                ++counts.unreadable;
+                continue;
+            }
             root->putInt("DataVersion", datafix::kCurrentVersion);
             region.setChunk(x, z, wire::nbt::nbtIO::write(parsed->tag, parsed->name), region.timestampAt(x, z));
             ++counts.upgraded;

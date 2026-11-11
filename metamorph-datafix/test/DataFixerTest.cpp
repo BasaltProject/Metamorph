@@ -358,7 +358,7 @@ TEST_CASE("a map saved before 1.20.5 gets a named dimension and block positions"
     NbtCompound data;
     data.putByte("dimension", -1);
     data.set("banners", NbtTag::ofList(banners));
-    basalt::metamorph::datafix::upgradeSavedData("map", data, 1343);
+    CHECK(basalt::metamorph::datafix::upgradeSavedData("map", data, 1343).empty());
     CHECK(data.getString("dimension") == "minecraft:the_nether");
     const NbtCompound* upgraded = (*data.getList("banners"))[0].get<NbtCompound>();
     CHECK(upgraded->getIntArray("pos").size() == 3);

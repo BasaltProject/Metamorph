@@ -588,14 +588,15 @@ void addSavedDataFixes(std::vector<Fix>& fixes) {
     fixes.push_back(onSavedData(4657, "world_border", borderWarningTime, "WorldBorderWarningTimeFix"));
 }
 
-void upgradeSavedData(std::string_view name, NbtCompound& data, std::int32_t fromVersion) {
+std::string upgradeSavedData(std::string_view name, NbtCompound& data, std::int32_t fromVersion) {
     NbtCompound container;
     container.set("data", NbtTag::ofCompound(std::move(data)));
     Context context;
     context.savedData = name;
-    (void)upgrade(Domain::SavedData, container, fromVersion, context);
+    std::string refusal = upgrade(Domain::SavedData, container, fromVersion, context);
     const NbtTag* fixed = container.find("data");
     data = fixed != nullptr && fixed->get<NbtCompound>() != nullptr ? *fixed->get<NbtCompound>() : NbtCompound{};
+    return refusal;
 }
 
 } // namespace basalt::metamorph::datafix

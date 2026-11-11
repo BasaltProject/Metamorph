@@ -5,6 +5,9 @@
 #include <basalt/metamorph/datafix/ProgressData.hpp>
 
 #include <algorithm>
+#include <map>
+#include <mutex>
+#include <tuple>
 #include <array>
 
 namespace basalt::metamorph::datafix {
@@ -293,11 +296,33 @@ const std::vector<Fix>& allFixes() {
     return all;
 }
 
+namespace {
+
+std::string cachedMissingStep(Domain domain, std::int32_t from, std::int32_t to, std::string_view savedData) {
+    static std::mutex lock;
+    static std::map<std::tuple<Domain, std::int32_t, std::int32_t, std::string>, std::string> known;
+    const auto key = std::make_tuple(domain, from, to, std::string{savedData});
+    {
+        const std::lock_guard guard{lock};
+        if (const auto found = known.find(key); found != known.end()) {
+            return found->second;
+        }
+    }
+    std::string gap = missingStep(domain, from, to, savedData);
+    const std::lock_guard guard{lock};
+    return known.emplace(key, std::move(gap)).first->second;
+}
+
+} // namespace
+
 std::string upgrade(Domain domain, NbtCompound& root, std::int32_t fromVersion, const Context& given,
                     std::int32_t toVersion) {
     std::string failure;
     Context context = given;
     context.failure = &failure;
+    if (const std::string gap = cachedMissingStep(domain, fromVersion, toVersion, given.savedData); !gap.empty()) {
+        return "no fix for " + gap;
+    }
     if (domain == Domain::Stats) {
         upgradeStatsTree(root, fromVersion);
     } else if (domain == Domain::Advancements) {
