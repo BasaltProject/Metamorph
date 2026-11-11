@@ -3,6 +3,7 @@
 #include "StructureRenames.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <map>
 #include <string>
 #include <vector>
