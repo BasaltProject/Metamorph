@@ -261,8 +261,8 @@ void addFixesFrom3000(std::vector<Fix>& fixes) {
     fixes.insert(fixes.end(),
                  {
                      {3077, Target::Chunk, {}, deleteIgnoredLight, "ChunkDeleteIgnoredLightDataFix"},
-                     {3086, Target::Entity, {}, catVariant},
-                     {3087, Target::Entity, {}, frogVariant},
+                     {3086, Target::Entity, {}, catVariant, ""},
+                     {3087, Target::Entity, {}, frogVariant, ""},
                      {3090, Target::Entity, {}, paintingFields, "EntityFieldsRenameFix"},
                      {3093, Target::Entity, {}, goatHorns, "EntityGoatMissingStateFix"},
                      {3094, Target::LegacyStack, {}, goatHornId, "GoatHornIdFix"},
@@ -270,7 +270,7 @@ void addFixesFrom3000(std::vector<Fix>& fixes) {
                      {3097, Target::BlockEntity, {}, filteredSigns, "FilteredSignsFix"},
                      {3097, Target::Entity, {}, britishShorthair, "VariantRenameFix"},
                      {3108, Target::Chunk, {}, blendingDataOutsideOverworld, "BlendingDataRemoveFromNetherEndFix"},
-                     {3209, Target::LegacyStack, {}, spawnEgg},
+                     {3209, Target::LegacyStack, {}, spawnEgg, ""},
                      {3322, Target::Entity, {}, effectDurationOfEntity, "EffectDurationFix"},
                      {3322, Target::LegacyStack, {}, effectDurationOfItem, "EffectDurationFix"},
                  });

@@ -464,7 +464,7 @@ void addFixesFrom3400(std::vector<Fix>& fixes) {
              "EntityBrushableBlockFieldsRenameFix"},
             {3438, Target::LegacyStack, {}, potteryShards, "ItemRenameFix"},
             {3439, Target::BlockEntity, {}, doubleSidedSign, "BlockEntitySignDoubleSidedEditableTextFix"},
-            {3447, Target::LegacyStack, {}, potterySherds},
+            {3447, Target::LegacyStack, {}, potterySherds, ""},
             {3448, Target::BlockEntity, "minecraft:decorated_pot", decoratedPotFields, "DecoratedPotFieldRenameFix"},
             {3450, Target::Chunk, {}, remapChunkStatus, "RemapChunkStatusFix"},
             {3451, Target::Chunk, {}, deleteLight, "ChunkDeleteLightFix"},
@@ -474,9 +474,9 @@ void addFixesFrom3400(std::vector<Fix>& fixes) {
             {3568, Target::LegacyStack, {}, mobEffectIdOfItem, "MobEffectIdFix"},
             {3683, Target::Entity, {}, primedTntBlockState, "PrimedTntBlockStateFixer"},
             {3685, Target::Entity, {}, projectileStoredItem, "FixProjectileStoredItem"},
-            {3692, Target::Palette, {}, grassOfPalette},
-            {3692, Target::Entity, {}, grassOfEntity},
-            {3692, Target::BlockEntity, "minecraft:piston", grassOfPiston},
+            {3692, Target::Palette, {}, grassOfPalette, ""},
+            {3692, Target::Entity, {}, grassOfEntity, ""},
+            {3692, Target::BlockEntity, "minecraft:piston", grassOfPiston, ""},
             {3692, Target::LegacyStack, {}, grassItem, "ItemRenameFix"},
         });
 }

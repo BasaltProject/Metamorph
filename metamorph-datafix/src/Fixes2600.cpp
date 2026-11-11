@@ -88,21 +88,29 @@ void renameBlocks(NbtCompound& chunk, const std::function<std::optional<std::str
 
 template <typename Table>
 [[nodiscard]] Fix blockRename(std::int32_t version, const Table& table) {
-    return {version, Target::Chunk, {}, [&table](NbtCompound& chunk, const Context&) {
+    return {version,
+            Target::Chunk,
+            {},
+            [&table](NbtCompound& chunk, const Context&) {
                 renameBlocks(chunk, [&table](const std::string& name) -> std::optional<std::string> {
                     const auto found = lookup(table, name);
                     return found.has_value() ? std::optional{std::string{*found}} : std::nullopt;
                 });
-            }};
+            },
+            ""};
 }
 
 template <typename Table>
 [[nodiscard]] Fix itemRename(std::int32_t version, const Table& table) {
-    return {version, Target::LegacyStack, {}, [&table](NbtCompound& stack, const Context&) {
+    return {version,
+            Target::LegacyStack,
+            {},
+            [&table](NbtCompound& stack, const Context&) {
                 if (const auto found = lookup(table, namespaced(stack.getString("id"))); found.has_value()) {
                     stack.putString("id", std::string{*found});
                 }
-            }};
+            },
+            ""};
 }
 
 // parity: `CauldronRenameFix`.
@@ -954,8 +962,8 @@ void addFixesFrom2600(std::vector<Fix>& fixes) {
                      {2702, Target::Entity, {}, arrowPickup, "AbstractArrowPickupFix"},
                      blockRename(2717, kAzalea),
                      itemRename(2717, kAzalea),
-                     {2831, Target::BlockEntity, {}, spawnerOfBlockEntity},
-                     {2831, Target::Entity, {}, spawnerOfMinecart},
+                     {2831, Target::BlockEntity, {}, spawnerOfBlockEntity, ""},
+                     {2831, Target::Entity, {}, spawnerOfMinecart, ""},
                      {2832, Target::Chunk, {}, heightAndBiome, "ChunkHeightAndBiomeFix"},
                      {2838, Target::Chunk, {}, cavesAndCliffsBiomes, "NamespacedTypeRenameFix"},
                      {2841, Target::Chunk, {}, protoTickList, "ChunkProtoTickListFix"},

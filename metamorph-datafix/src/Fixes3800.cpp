@@ -931,7 +931,7 @@ void addFixesFrom3800(std::vector<Fix>& fixes) {
                      {3818, Target::BlockEntity, {}, beehiveFields, "BeehiveFieldRenameFix"},
                      {3818, Target::BlockEntity, {}, bannerPatterns, "BannerPatternFormatFix"},
                      {3818, Target::Entity, {}, tippedArrowPotion, "TippedArrowPotionToItemFix"},
-                     {3818, Target::Entity, {}, particleUnflattening},
+                     {3818, Target::Entity, {}, particleUnflattening, ""},
                      {3818, Target::LegacyStack, {}, componentizeStack, "ItemStackComponentizationFix"},
                      {3818, Target::Entity, {}, areaEffectCloudPotion, "AreaEffectCloudPotionFix"},
                      {3820, Target::BlockEntity, {}, playerHeadProfile, "PlayerHeadBlockProfileFix"},

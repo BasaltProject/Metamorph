@@ -691,20 +691,23 @@ void addFixesFrom0100(std::vector<Fix>& fixes) {
                  if (e.getString("id") == "Villager") {
                      villagerPicksUpLoot(e, c);
                  }
-             }},
+             },
+             ""},
             {102, Target::Root, {}, itemIds, "ItemIdFix"},
             {102,
              Target::Root,
              {},
              [](NbtCompound& root, const Context& c) {
                  forEachNamedStack(root, [&c](NbtCompound& s) { itemPotions(s, c); });
-             }},
+             },
+             ""},
             {105,
              Target::Root,
              {},
              [](NbtCompound& root, const Context& c) {
                  forEachNamedStack(root, [&c](NbtCompound& s) { itemSpawnEggs(s, c); });
-             }},
+             },
+             ""},
             {106, Target::BlockEntity, "MobSpawner", spawnerEntityIds, "MobSpawnerEntityIdentifiersFix"},
             {107, Target::Entity, {}, minecartIds, "EntityMinecartIdentifiersFix"},
             {108, Target::Entity, {}, stringUuids, "EntityStringUuidFix"},
@@ -721,7 +724,8 @@ void addFixesFrom0100(std::vector<Fix>& fixes) {
              {},
              [](NbtCompound& root, const Context& c) {
                  forEachNamedStack(root, [&c](NbtCompound& s) { bookPages(s, c); });
-             }},
+             },
+             ""},
             {502, Target::Entity, {}, zombieVillagerType, "EntityZombieVillagerTypeFix"},
             {700, Target::Entity, {}, elderGuardian, "EntityElderGuardianSplitFix"},
             {701, Target::Entity, {}, skeletonSplit, "EntitySkeletonSplitFix"},
@@ -734,20 +738,23 @@ void addFixesFrom0100(std::vector<Fix>& fixes) {
              {},
              [](NbtCompound& root, const Context& c) {
                  forEachNamedStack(root, [&c](NbtCompound& s) { bannerItems(s, c); });
-             }},
+             },
+             ""},
             {806,
              Target::Root,
              {},
              [](NbtCompound& root, const Context& c) {
                  forEachNamedStack(root, [&c](NbtCompound& s) { waterPotions(s, c); });
-             }},
+             },
+             ""},
             {808, Target::Entity, "minecraft:shulker", shulkerColor, "EntityShulkerColorFix"},
             {813,
              Target::Root,
              {},
              [](NbtCompound& root, const Context& c) {
                  forEachNamedStack(root, [&c](NbtCompound& s) { shulkerBoxItems(s, c); });
-             }},
+             },
+             ""},
             {813, Target::BlockEntity, "minecraft:shulker_box", shulkerBoxColor, "BlockEntityShulkerBoxColorFix"},
             {1125, Target::Chunk, {}, injectBedBlockEntities, "ChunkBedBlockEntityInjecterFix"},
             {1125,
@@ -755,7 +762,8 @@ void addFixesFrom0100(std::vector<Fix>& fixes) {
              {},
              [](NbtCompound& root, const Context& c) {
                  forEachNamedStack(root, [&c](NbtCompound& s) { bedItems(s, c); });
-             }},
+             },
+             ""},
         });
 }
 

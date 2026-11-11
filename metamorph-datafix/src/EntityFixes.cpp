@@ -444,7 +444,7 @@ void copperGolemWeatherState(NbtCompound& entity, const Context&) {
 } // namespace
 
 void addEntityFixes(std::vector<Fix>& fixes) {
-    fixes.push_back({4299, Target::ItemStack, {}, bucketVariants});
+    fixes.push_back({4299, Target::ItemStack, {}, bucketVariants, ""});
     fixes.insert(
         fixes.end(),
         {

@@ -18,6 +18,7 @@ namespace basalt::metamorph::datafix {
 [[nodiscard]] wire::nbt::NbtCompound dragonFightOfLegacy(const wire::nbt::NbtCompound& legacy);
 
 /// parity: the `SAVED_DATA_*` fixes of the saved data file `name` from `fromVersion` on; returns a refusal or empty.
-[[nodiscard]] std::string upgradeSavedData(std::string_view name, wire::nbt::NbtCompound& data, std::int32_t fromVersion);
+[[nodiscard]] std::string upgradeSavedData(std::string_view name, wire::nbt::NbtCompound& data,
+                                           std::int32_t fromVersion);
 
 } // namespace basalt::metamorph::datafix

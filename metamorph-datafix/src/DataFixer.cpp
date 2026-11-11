@@ -5,10 +5,10 @@
 #include <basalt/metamorph/datafix/ProgressData.hpp>
 
 #include <algorithm>
+#include <array>
 #include <map>
 #include <mutex>
 #include <tuple>
-#include <array>
 
 namespace basalt::metamorph::datafix {
 namespace {

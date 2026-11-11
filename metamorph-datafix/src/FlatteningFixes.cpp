@@ -835,13 +835,17 @@ void leavesDistance(NbtCompound& chunk, const Context&) {
 void addFlatteningFixes(std::vector<Fix>& fixes) {
     for (const renames::Step& step : renames::kSteps) {
         if (step.block) {
-            fixes.push_back({step.version, Target::Chunk, {}, [&step](NbtCompound& chunk, const Context&) {
-                                 renamePalette(chunk, step);
-                             }});
+            fixes.push_back({step.version,
+                             Target::Chunk,
+                             {},
+                             [&step](NbtCompound& chunk, const Context&) { renamePalette(chunk, step); },
+                             ""});
         } else {
-            fixes.push_back({step.version, Target::LegacyStack, {}, [&step](NbtCompound& stack, const Context&) {
-                                 renameItem(stack, step);
-                             }});
+            fixes.push_back({step.version,
+                             Target::LegacyStack,
+                             {},
+                             [&step](NbtCompound& stack, const Context&) { renameItem(stack, step); },
+                             ""});
         }
     }
     fixes.insert(fixes.end(),
@@ -860,9 +864,9 @@ void addFlatteningFixes(std::vector<Fix>& fixes) {
                      {1460, Target::Entity, {}, paintingMotive, "EntityPaintingMotiveFix"},
                      {1466, Target::Chunk, {}, chunkToProtochunk, "ChunkToProtochunkFix"},
                      {1474, Target::Entity, {}, colorlessShulker, "ColorlessShulkerEntityFix"},
-                     {1474, Target::Chunk, {}, colorlessShulkerBlock},
-                     {1474, Target::LegacyStack, {}, colorlessShulkerItem},
-                     {1483, Target::LegacyStack, {}, renamingOfEggs},
+                     {1474, Target::Chunk, {}, colorlessShulkerBlock, ""},
+                     {1474, Target::LegacyStack, {}, colorlessShulkerItem, ""},
+                     {1483, Target::LegacyStack, {}, renamingOfEggs, ""},
                      {1484, Target::Chunk, {}, heightmapNames, "HeightmapRenamingFix"},
                      {1494, Target::LegacyStack, {}, enchantmentNames, "ItemStackEnchantmentNamesFix"},
                      {1496, Target::Chunk, {}, leavesDistance, "LeavesFix"},
