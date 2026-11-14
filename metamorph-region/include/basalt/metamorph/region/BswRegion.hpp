@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -22,6 +23,15 @@ public:
     [[nodiscard]] std::uint32_t id() const noexcept { return id_; }
 
     [[nodiscard]] std::span<const std::uint8_t> bytes() const noexcept { return bytes_; }
+
+    /// Null when the samples are too few or too uniform to train on.
+    [[nodiscard]] static std::shared_ptr<const BswDictionary>
+    train(std::span<const std::span<const std::uint8_t>> samples, std::size_t capacity, int level);
+
+    [[nodiscard]] static std::shared_ptr<const BswDictionary> load(const std::string& path, int level);
+
+    /// Written to a temporary file and renamed, so a crash leaves the old dictionary or the new one.
+    [[nodiscard]] bool save(const std::string& path) const;
 
 private:
     friend class BswRegion;
@@ -77,6 +87,8 @@ struct BswStats {
     std::uint64_t generation = 0;
 };
 
+enum class BswRead : std::uint8_t { Ok, Absent, Corrupt };
+
 /// One region file: two alternating index slots, copy-on-write blobs, every blob checked by CRC32C.
 class BswRegion {
 public:
@@ -93,9 +105,14 @@ public:
 
     [[nodiscard]] bool hasChunk(std::int32_t localX, std::int32_t localZ) const;
 
-    /// Fills `out` with the chunk's NBT. False when absent or when a checksum fails.
-    [[nodiscard]] bool read(std::int32_t localX, std::int32_t localZ, BswScratch& scratch,
-                            std::vector<std::uint8_t>& out) const;
+    /// Fills `out` with the chunk's NBT; `Corrupt` when a checksum, a codec or the dictionary does not match.
+    [[nodiscard]] BswRead read(std::int32_t localX, std::int32_t localZ, BswScratch& scratch,
+                               std::vector<std::uint8_t>& out) const;
+
+    [[nodiscard]] std::int32_t timestampOf(std::int32_t localX, std::int32_t localZ) const;
+
+    /// Later commits compress with this dictionary; chunks already stored keep theirs.
+    void useDictionary(std::shared_ptr<const BswDictionary> dictionary);
 
     /// One atomic commit for all the puts: crash safe, either every change is visible afterwards or none.
     bool write(std::span<const BswPut> puts, BswScratch& scratch);
@@ -108,6 +125,9 @@ public:
 
     /// Rebuilds the file without holes, then renames it over the old one.
     bool compact(BswScratch& scratch);
+
+    /// How many stored chunks fail their checksum; reads every blob.
+    [[nodiscard]] std::size_t countCorrupt(BswScratch& scratch) const;
 
     [[nodiscard]] BswStats stats() const;
 

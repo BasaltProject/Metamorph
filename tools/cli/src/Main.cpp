@@ -1,5 +1,7 @@
 #include "Commands.hpp"
 
+#include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -7,7 +9,7 @@
 namespace {
 
 constexpr const char* kUsage =
-    "usage: metamorph convert <world> --to anvil|linear [-o <out>]\n"
+    "usage: metamorph convert <world> --to anvil|linear|bsw [-o <out>]\n"
     "       metamorph upgrade <world> [-o <out>]\n"
     "The input is never modified; the result goes to <world>.converted unless -o says otherwise.\n";
 
@@ -44,9 +46,13 @@ int main(int argc, char** argv) {
     if (args[0] == "upgrade") {
         return basalt::metamorph::cli::upgrade(world, output);
     }
-    if (format != "anvil" && format != "linear") {
+    if (format != "anvil" && format != "linear" && format != "bsw") {
         std::cerr << kUsage;
         return 2;
+    }
+    if (format == "bsw" || std::ranges::any_of(fs::recursive_directory_iterator(world),
+                                               [](const auto& entry) { return entry.path().extension() == ".bsw"; })) {
+        return basalt::metamorph::cli::convertFolders(world, format, output);
     }
     return basalt::metamorph::cli::convert(
         world, format == "anvil" ? basalt::metamorph::cli::Format::Anvil : basalt::metamorph::cli::Format::Linear,

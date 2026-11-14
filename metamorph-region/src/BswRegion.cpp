@@ -1,3 +1,5 @@
+#include "BswInternal.hpp"
+
 #include <basalt/metamorph/region/BswRegion.hpp>
 
 #include <algorithm>
@@ -61,6 +63,7 @@ struct Entry {
     std::uint8_t codec = 0;
     std::uint8_t level = 0;
     std::uint16_t mask = 0;
+    std::uint32_t dictId = 0;
 
     [[nodiscard]] bool live() const noexcept { return mask != 0; }
 };
@@ -76,6 +79,7 @@ void encodeEntry(std::uint8_t* at, const Entry& e) {
     at[25] = e.level;
     at[26] = static_cast<std::uint8_t>(e.mask);
     at[27] = static_cast<std::uint8_t>(e.mask >> 8);
+    put32(at + 28, e.dictId);
 }
 
 [[nodiscard]] Entry decodeEntry(const std::uint8_t* at) {
@@ -88,6 +92,7 @@ void encodeEntry(std::uint8_t* at, const Entry& e) {
     e.codec = at[24];
     e.level = at[25];
     e.mask = static_cast<std::uint16_t>(at[26] | (at[27] << 8));
+    e.dictId = get32(at + 28);
     return e;
 }
 
@@ -158,6 +163,15 @@ __attribute__((target("sse4.2"))) std::uint32_t crc32cHardware(const std::uint8_
     return ~c;
 }
 
+void syncDirectory(const std::string& path) {
+    const std::string parent = std::filesystem::path{path}.parent_path().string();
+    const int fd = ::open(parent.empty() ? "." : parent.c_str(), O_RDONLY | O_DIRECTORY);
+    if (fd >= 0) {
+        ::fdatasync(fd);
+        ::close(fd);
+    }
+}
+
 struct Extent {
     std::uint64_t offset = 0;
     std::uint64_t size = 0;
@@ -173,22 +187,6 @@ std::uint32_t crc32c(std::span<const std::uint8_t> bytes, std::uint32_t seed) no
     }
 #endif
     return crc32cSoftware(bytes.data(), bytes.size(), seed);
-}
-
-struct BswDictionary::Impl {
-    ZSTD_CDict* cdict = nullptr;
-    ZSTD_DDict* ddict = nullptr;
-};
-
-BswDictionary::BswDictionary(std::vector<std::uint8_t> bytes, int level)
-    : bytes_(std::move(bytes)), id_(crc32c(bytes_)), impl_(std::make_unique<Impl>()) {
-    impl_->cdict = ZSTD_createCDict(bytes_.data(), bytes_.size(), level);
-    impl_->ddict = ZSTD_createDDict(bytes_.data(), bytes_.size());
-}
-
-BswDictionary::~BswDictionary() {
-    ZSTD_freeCDict(impl_->cdict);
-    ZSTD_freeDDict(impl_->ddict);
 }
 
 struct BswScratch::Impl {
@@ -327,7 +325,7 @@ struct BswRegion::State {
         std::size_t got = 0;
         if (e.codec == static_cast<std::uint8_t>(BswCodec::Zstd)) {
             got = ZSTD_decompressDCtx(scratch.impl_->dctx, raw.data(), raw.size(), view, e.compressedSize);
-        } else if (options.dictionary != nullptr && options.dictionary->id() == dictId) {
+        } else if (options.dictionary != nullptr && options.dictionary->id() == e.dictId) {
             got = ZSTD_decompress_usingDDict(scratch.impl_->dctx, raw.data(), raw.size(), view, e.compressedSize,
                                              options.dictionary->impl_->ddict);
         } else {
@@ -420,6 +418,7 @@ struct BswRegion::State {
             e.timestamp = update.timestamp;
             e.codec = usedCodec;
             e.level = static_cast<std::uint8_t>(level < 0 ? 0 : level);
+            e.dictId = usedCodec == static_cast<std::uint8_t>(BswCodec::ZstdDict) ? options.dictionary->id() : 0;
             e.mask = update.mask;
             next[update.unit] = e;
         }
@@ -454,14 +453,19 @@ std::unique_ptr<BswRegion> BswRegion::open(const std::string& path, const BswOpt
     if (!exists && !create) {
         return nullptr;
     }
-    state->fd = ::open(path.c_str(), O_RDWR | (exists ? 0 : O_CREAT | O_EXCL), 0644);
+    const std::string creating = path + ".new";
+    state->fd = ::open((exists ? path : creating).c_str(), O_RDWR | (exists ? 0 : O_CREAT | O_TRUNC), 0644);
     if (state->fd < 0) {
         return nullptr;
     }
     if (!exists) {
-        if (!state->writeHeader() || !state->writeSlot(0, 1, kDataStart, state->entries, options.syncOnCommit)) {
+        std::error_code error;
+        if (!state->writeHeader() || !state->writeSlot(0, 1, kDataStart, state->entries, true) ||
+            (std::filesystem::rename(creating, path, error), error)) {
+            std::filesystem::remove(creating, error);
             return nullptr;
         }
+        syncDirectory(path);
         state->generation = 1;
         state->activeSlot = 0;
     } else {
@@ -507,37 +511,43 @@ bool BswRegion::hasChunk(std::int32_t localX, std::int32_t localZ) const {
     return (e.mask >> state_->bitOf(localX, localZ) & 1U) != 0;
 }
 
-bool BswRegion::read(std::int32_t localX, std::int32_t localZ, BswScratch& scratch,
-                     std::vector<std::uint8_t>& out) const {
+BswRead BswRegion::read(std::int32_t localX, std::int32_t localZ, BswScratch& scratch,
+                        std::vector<std::uint8_t>& out) const {
     const unsigned bit = state_->bitOf(localX, localZ);
-    for (int attempt = 0; attempt < 2; ++attempt) {
-        Entry e;
-        {
-            const std::shared_lock lock{state_->indexMutex};
-            e = state_->entries[state_->unitOf(localX, localZ)];
-        }
-        if ((e.mask >> bit & 1U) == 0) {
-            return false;
-        }
-        if (!state_->inflate(e, scratch, scratch.raw)) {
-            continue;
-        }
-        const std::uint8_t* table = scratch.raw.data();
-        const unsigned count = static_cast<unsigned>(std::popcount(e.mask));
-        std::size_t payload = static_cast<std::size_t>(count) * 8;
-        const unsigned rank = static_cast<unsigned>(std::popcount(static_cast<unsigned>(e.mask) & ((1U << bit) - 1)));
-        for (unsigned i = 0; i < rank; ++i) {
-            payload += get32(table + (i * 8));
-        }
-        const std::uint32_t length = get32(table + (rank * 8));
-        if (payload + length > scratch.raw.size()) {
-            return false;
-        }
-        out.assign(scratch.raw.begin() + static_cast<std::ptrdiff_t>(payload),
-                   scratch.raw.begin() + static_cast<std::ptrdiff_t>(payload + length));
-        return true;
+    const std::shared_lock lock{state_->indexMutex};
+    const Entry& e = state_->entries[state_->unitOf(localX, localZ)];
+    if ((e.mask >> bit & 1U) == 0) {
+        return BswRead::Absent;
     }
-    return false;
+    if (!state_->inflate(e, scratch, scratch.raw)) {
+        return BswRead::Corrupt;
+    }
+    const std::uint8_t* table = scratch.raw.data();
+    const unsigned count = static_cast<unsigned>(std::popcount(e.mask));
+    std::size_t payload = static_cast<std::size_t>(count) * 8;
+    const unsigned rank = static_cast<unsigned>(std::popcount(static_cast<unsigned>(e.mask) & ((1U << bit) - 1)));
+    for (unsigned i = 0; i < rank; ++i) {
+        payload += get32(table + (i * 8));
+    }
+    const std::uint32_t length = get32(table + (rank * 8));
+    if (payload + length > scratch.raw.size()) {
+        return BswRead::Corrupt;
+    }
+    out.assign(scratch.raw.begin() + static_cast<std::ptrdiff_t>(payload),
+               scratch.raw.begin() + static_cast<std::ptrdiff_t>(payload + length));
+    return BswRead::Ok;
+}
+
+std::int32_t BswRegion::timestampOf(std::int32_t localX, std::int32_t localZ) const {
+    const std::shared_lock lock{state_->indexMutex};
+    return static_cast<std::int32_t>(state_->entries[state_->unitOf(localX, localZ)].timestamp);
+}
+
+void BswRegion::useDictionary(std::shared_ptr<const BswDictionary> dictionary) {
+    const std::lock_guard<std::mutex> writer{state_->writeMutex};
+    const std::unique_lock lock{state_->indexMutex};
+    state_->options.dictionary = std::move(dictionary);
+    state_->options.codec = state_->options.dictionary != nullptr ? BswCodec::ZstdDict : BswCodec::Zstd;
 }
 
 bool BswRegion::write(std::span<const BswPut> puts, BswScratch& scratch) {
@@ -551,7 +561,7 @@ bool BswRegion::write(std::span<const BswPut> puts, BswScratch& scratch) {
     std::vector<std::uint8_t> oldRaw;
     for (auto& [unit, list] : byUnit) {
         const Entry old = s.entries[unit];
-        const bool partial = old.live();
+        const bool partial = old.live() && s.unitShift != 0;
         if (partial && !s.inflate(old, scratch, oldRaw)) {
             return false;
         }
@@ -579,7 +589,7 @@ bool BswRegion::write(std::span<const BswPut> puts, BswScratch& scratch) {
                 mask = static_cast<std::uint16_t>(mask | (1U << bit));
             }
         }
-        std::uint32_t newest = old.timestamp;
+        std::uint32_t newest = partial ? old.timestamp : 0;
         for (const BswPut* put : list) {
             const unsigned bit = s.bitOf(put->localX, put->localZ);
             if (put->nbt.empty()) {
@@ -689,6 +699,7 @@ bool BswRegion::compact(BswScratch& scratch) {
     if (error) {
         return false;
     }
+    syncDirectory(s.path);
     const int reopened = ::open(s.path.c_str(), O_RDWR);
     if (reopened < 0) {
         return false;
@@ -703,6 +714,17 @@ bool BswRegion::compact(BswScratch& scratch) {
     s.activeSlot = 0;
     s.remap();
     return true;
+}
+
+std::size_t BswRegion::countCorrupt(BswScratch& scratch) const {
+    const std::shared_lock lock{state_->indexMutex};
+    std::size_t bad = 0;
+    for (const Entry& e : state_->entries) {
+        if (e.live() && !state_->inflate(e, scratch, scratch.raw)) {
+            bad += static_cast<std::size_t>(std::popcount(e.mask));
+        }
+    }
+    return bad;
 }
 
 BswStats BswRegion::stats() const {

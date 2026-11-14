@@ -35,6 +35,7 @@ endif()
 add_subdirectory(metamorph-region)
 add_subdirectory(metamorph-datafix)
 
-if(BASALT_METAMORPH_STANDALONE)
+option(BASALT_BUILD_METAMORPH_CLI "Build the metamorph command line tool inside a consumer" OFF)
+if(BASALT_METAMORPH_STANDALONE OR BASALT_BUILD_METAMORPH_CLI)
     add_subdirectory(tools/cli)
 endif()

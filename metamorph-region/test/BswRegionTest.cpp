@@ -1,6 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
+#include <basalt/metamorph/region/BswConvert.hpp>
 #include <basalt/metamorph/region/BswRegion.hpp>
+#include <basalt/metamorph/region/LinearRegion.hpp>
 
 #include <doctest.h>
 
@@ -51,9 +53,9 @@ TEST_CASE("bsw round trips chunks in every unit size and reuses space") {
         const std::vector<BswPut> back{{3, 4, a, 13}};
         REQUIRE(region->write(back, scratch));
         std::vector<std::uint8_t> out;
-        REQUIRE(region->read(3, 4, scratch, out));
+        REQUIRE(region->read(3, 4, scratch, out) == BswRead::Ok);
         CHECK(out == a);
-        REQUIRE(region->read(4, 4, scratch, out));
+        REQUIRE(region->read(4, 4, scratch, out) == BswRead::Ok);
         CHECK(out == b);
         CHECK_FALSE(region->hasChunk(0, 0));
         const std::vector<BswPut> remove{{4, 4, {}, 0}};
@@ -63,7 +65,7 @@ TEST_CASE("bsw round trips chunks in every unit size and reuses space") {
         region.reset();
         region = BswRegion::open(path, options, false);
         REQUIRE(region != nullptr);
-        REQUIRE(region->read(3, 4, scratch, out));
+        REQUIRE(region->read(3, 4, scratch, out) == BswRead::Ok);
         CHECK(out == a);
     }
 }
@@ -90,6 +92,37 @@ TEST_CASE("bsw falls back to the previous index when the newest slot is torn") {
     region = BswRegion::open(path, options, false);
     REQUIRE(region != nullptr);
     std::vector<std::uint8_t> out;
-    REQUIRE(region->read(1, 1, scratch, out));
+    REQUIRE(region->read(1, 1, scratch, out) == BswRead::Ok);
     CHECK(out == a);
+}
+
+TEST_CASE("bsw converts a folder from linear and back, verifies every chunk and mixes dictionary entries") {
+    const std::filesystem::path root = std::filesystem::path{BASALT_TEST_SCRATCH_DIR} / "convert";
+    std::error_code ignored;
+    std::filesystem::remove_all(root, ignored);
+    std::filesystem::create_directories(root / "linear");
+    for (int regionX = 0; regionX < 3; ++regionX) {
+        LinearRegion region;
+        for (int at = 0; at < 40; ++at) {
+            std::string text;
+            for (int line = 0; line < 120; ++line) {
+                text += "{\"block\":\"minecraft:stone\",\"light\":" + std::to_string((line * 7 + at) % 15) + "}";
+            }
+            region.setChunk(at % 32, at / 32, std::vector<std::uint8_t>(text.begin(), text.end()), 100 + at);
+        }
+        REQUIRE(region.writeTo((root / "linear" / ("r." + std::to_string(regionX) + ".0.linear")).string()));
+    }
+    CHECK(detectRegionFormat((root / "linear").string()) == RegionFormat::Linear);
+    const ConvertReport toBsw =
+        convertRegionFolder((root / "linear").string(), (root / "bsw").string(), RegionFormat::Bsw, {});
+    CHECK(toBsw.ok());
+    CHECK(toBsw.chunks == 120);
+    CHECK(detectRegionFormat((root / "bsw").string()) == RegionFormat::Bsw);
+    CHECK(std::filesystem::exists(root / "bsw" / kBswDictionaryName));
+    const ConvertReport back =
+        convertRegionFolder((root / "bsw").string(), (root / "back").string(), RegionFormat::Linear, {});
+    CHECK(back.ok());
+    CHECK(back.chunks == 120);
+    std::filesystem::copy_file(root / "linear" / "r.0.0.linear", root / "bsw" / "r.9.9.linear");
+    CHECK(detectRegionFormat((root / "bsw").string()) == RegionFormat::Mixed);
 }
