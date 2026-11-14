@@ -1,8 +1,10 @@
 basalt_module(metamorph-region
     SOURCES
         src/AnvilRegion.cpp
+        src/BswRegion.cpp
         src/LinearRegion.cpp
     DEPENDS basalt::wire-common basalt::wire-io
+    PRIVATE_DEPENDS basalt::zstd
 )
 
 basalt_test(metamorph-region-anvil-test
@@ -18,5 +20,15 @@ basalt_test(metamorph-region-linear-test
 )
 
 target_compile_definitions(metamorph-region-linear-test
+    PRIVATE BASALT_TEST_SCRATCH_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-data"
+)
+
+basalt_test(metamorph-region-bsw-test
+    SOURCES
+        test/BswRegionTest.cpp
+    DEPENDS basalt::metamorph-region
+)
+
+target_compile_definitions(metamorph-region-bsw-test
     PRIVATE BASALT_TEST_SCRATCH_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-data"
 )
