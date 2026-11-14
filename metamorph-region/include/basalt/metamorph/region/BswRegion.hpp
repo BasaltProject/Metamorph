@@ -20,6 +20,7 @@ public:
     BswDictionary& operator=(const BswDictionary&) = delete;
 
     [[nodiscard]] std::uint32_t id() const noexcept { return id_; }
+
     [[nodiscard]] std::span<const std::uint8_t> bytes() const noexcept { return bytes_; }
 
 private:

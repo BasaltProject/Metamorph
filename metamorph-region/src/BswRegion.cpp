@@ -1,22 +1,20 @@
 #include <basalt/metamorph/region/BswRegion.hpp>
 
-#include <zstd.h>
-
 #include <algorithm>
 #include <array>
 #include <bit>
 #include <cerrno>
 #include <cstring>
+#include <fcntl.h>
 #include <filesystem>
 #include <map>
 #include <shared_mutex>
-#include <system_error>
-#include <utility>
-
-#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <system_error>
 #include <unistd.h>
+#include <utility>
+#include <zstd.h>
 
 #if defined(__x86_64__)
 #include <nmmintrin.h>
@@ -39,12 +37,15 @@ constexpr std::uint64_t kBlobAlign = 64;
 [[nodiscard]] std::uint64_t alignUp(std::uint64_t value) { return (value + kBlobAlign - 1) / kBlobAlign * kBlobAlign; }
 
 void put32(std::uint8_t* at, std::uint32_t v) { std::memcpy(at, &v, 4); }
+
 void put64(std::uint8_t* at, std::uint64_t v) { std::memcpy(at, &v, 8); }
+
 [[nodiscard]] std::uint32_t get32(const std::uint8_t* at) {
     std::uint32_t v;
     std::memcpy(&v, at, 4);
     return v;
 }
+
 [[nodiscard]] std::uint64_t get64(const std::uint8_t* at) {
     std::uint64_t v;
     std::memcpy(&v, at, 8);
@@ -122,7 +123,7 @@ bool pwriteFully(int fd, const std::uint8_t* from, std::size_t size, std::uint64
 
 #if defined(__x86_64__)
 __attribute__((target("sse4.2"))) std::uint32_t crc32cHardware(const std::uint8_t* p, std::size_t n,
-                                                                std::uint32_t crc) {
+                                                               std::uint32_t crc) {
     std::uint64_t c = ~crc;
     while (n >= 8) {
         std::uint64_t word;
@@ -193,6 +194,7 @@ BswDictionary::~BswDictionary() {
 struct BswScratch::Impl {
     ZSTD_CCtx* cctx = ZSTD_createCCtx();
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
+
     ~Impl() {
         ZSTD_freeCCtx(cctx);
         ZSTD_freeDCtx(dctx);
@@ -200,6 +202,7 @@ struct BswScratch::Impl {
 };
 
 BswScratch::BswScratch() : impl_(std::make_unique<Impl>()) {}
+
 BswScratch::~BswScratch() = default;
 
 struct BswRegion::State {
@@ -251,9 +254,11 @@ struct BswRegion::State {
     }
 
     [[nodiscard]] std::size_t unitsPerSide() const { return kDimension >> unitShift; }
+
     [[nodiscard]] std::size_t unitOf(std::int32_t lx, std::int32_t lz) const {
         return (static_cast<std::size_t>(lz >> unitShift) * unitsPerSide()) + static_cast<std::size_t>(lx >> unitShift);
     }
+
     [[nodiscard]] unsigned bitOf(std::int32_t lx, std::int32_t lz) const {
         const unsigned side = 1U << unitShift;
         return (static_cast<unsigned>(lz) & (side - 1)) * side + (static_cast<unsigned>(lx) & (side - 1));
@@ -277,8 +282,7 @@ struct BswRegion::State {
         for (std::size_t i = 0; i < kSlotCount; ++i) {
             encodeEntry(bytes.data() + kSlotHeaderSize + (i * kEntrySize), source[i]);
         }
-        const std::uint32_t entriesCrc =
-            crc32c(std::span{bytes.data() + kSlotHeaderSize, kSlotCount * kEntrySize});
+        const std::uint32_t entriesCrc = crc32c(std::span{bytes.data() + kSlotHeaderSize, kSlotCount * kEntrySize});
         put64(bytes.data(), kSlotMagic);
         put64(bytes.data() + 8, gen);
         put64(bytes.data() + 16, end);
@@ -437,6 +441,7 @@ struct BswRegion::State {
 };
 
 BswRegion::BswRegion(std::unique_ptr<State> state) : state_(std::move(state)) {}
+
 BswRegion::~BswRegion() = default;
 
 std::unique_ptr<BswRegion> BswRegion::open(const std::string& path, const BswOptions& options, bool create) {
@@ -461,9 +466,8 @@ std::unique_ptr<BswRegion> BswRegion::open(const std::string& path, const BswOpt
         state->activeSlot = 0;
     } else {
         std::array<std::uint8_t, kPage> page{};
-        if (!preadFully(state->fd, page.data(), page.size(), 0) ||
-            std::memcmp(page.data(), kMagic.data(), 8) != 0 || get32(page.data() + 8) != kVersion ||
-            crc32c(std::span{page.data(), 20}) != get32(page.data() + 20)) {
+        if (!preadFully(state->fd, page.data(), page.size(), 0) || std::memcmp(page.data(), kMagic.data(), 8) != 0 ||
+            get32(page.data() + 8) != kVersion || crc32c(std::span{page.data(), 20}) != get32(page.data() + 20)) {
             return nullptr;
         }
         state->unitShift = page[12];
@@ -552,10 +556,12 @@ bool BswRegion::write(std::span<const BswPut> puts, BswScratch& scratch) {
             return false;
         }
         const unsigned side = 1U << s.unitShift;
+
         struct Piece {
             std::span<const std::uint8_t> bytes;
             std::uint32_t timestamp = 0;
         };
+
         std::array<Piece, 16> pieces{};
         std::uint16_t mask = 0;
         if (partial) {
