@@ -1,6 +1,8 @@
+#include <basalt/metamorph/datafix/DataFixer.hpp>
 #include <basalt/metamorph/region/AnvilRegion.hpp>
 #include <basalt/metamorph/region/BswConvert.hpp>
 #include <basalt/metamorph/region/BswRegion.hpp>
+#include <basalt/metamorph/region/ChunkBlob.hpp>
 #include <basalt/wire/io/FileIO.hpp>
 
 #include <algorithm>
@@ -98,7 +100,11 @@ struct Loaded {
                 if (region->read(x, z, scratch, bytes) != BswRead::Ok) {
                     return loaded;
                 }
-                loaded.region.setChunk(x, z, bytes, region->timestampOf(x, z));
+                std::vector<std::uint8_t> nbt = chunkBlob::decode(bytes);
+                if (nbt.empty()) {
+                    return loaded;
+                }
+                loaded.region.setChunk(x, z, std::move(nbt), region->timestampOf(x, z));
             }
         }
         loaded.ok = true;
@@ -144,10 +150,13 @@ struct Loaded {
         return false;
     }
     std::vector<BswPut> puts;
+    std::vector<std::vector<std::uint8_t>> stored;
+    stored.reserve(LinearRegion::kSlotCount);
     for (std::int32_t z = 0; z < LinearRegion::kDimension; ++z) {
         for (std::int32_t x = 0; x < LinearRegion::kDimension; ++x) {
             if (region.hasChunkAt(x, z)) {
-                puts.push_back({x, z, region.chunkAt(x, z), region.timestampAt(x, z)});
+                stored.push_back(chunkBlob::encode(region.chunkAt(x, z), datafix::kCurrentVersion));
+                puts.push_back({x, z, stored.back(), region.timestampAt(x, z)});
             }
         }
     }
@@ -163,9 +172,7 @@ struct Loaded {
             if (has != actual.hasChunkAt(x, z)) {
                 ++bad;
             } else if (has) {
-                const auto a = expected.chunkAt(x, z);
-                const auto b = actual.chunkAt(x, z);
-                if (a.size() != b.size() || !std::equal(a.begin(), a.end(), b.begin()) ||
+                if (!chunkBlob::equivalent(expected.chunkAt(x, z), actual.chunkAt(x, z)) ||
                     expected.timestampAt(x, z) != actual.timestampAt(x, z)) {
                     ++bad;
                 }
@@ -186,8 +193,7 @@ struct Loaded {
         for (std::int32_t z = 0; z < LinearRegion::kDimension && owned.size() < kSampleChunks; ++z) {
             for (std::int32_t x = 0; x < LinearRegion::kDimension && owned.size() < kSampleChunks; ++x) {
                 if (loaded.region.hasChunkAt(x, z)) {
-                    const auto bytes = loaded.region.chunkAt(x, z);
-                    owned.emplace_back(bytes.begin(), bytes.end());
+                    owned.push_back(chunkBlob::encode(loaded.region.chunkAt(x, z), datafix::kCurrentVersion));
                 }
             }
         }

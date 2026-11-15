@@ -32,8 +32,8 @@ if(NOT TARGET basalt::wire-nbt)
     set(BASALT_METAMORPH_STANDALONE ON)
 endif()
 
-add_subdirectory(metamorph-region)
 add_subdirectory(metamorph-datafix)
+add_subdirectory(metamorph-region)
 
 option(BASALT_BUILD_METAMORPH_CLI "Build the metamorph command line tool inside a consumer" OFF)
 if(BASALT_METAMORPH_STANDALONE OR BASALT_BUILD_METAMORPH_CLI)
