@@ -13,6 +13,7 @@
 #include <map>
 #include <random>
 #include <string>
+#include <sys/prctl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <utility>
@@ -92,7 +93,11 @@ void expectModel(BswRegion& region, const Model& model, BswScratch& scratch) {
     return (directory / "r.0.0.bsw").string();
 }
 
-[[noreturn]] void childLoop(const std::string& path) {
+[[noreturn]] void childLoop(const std::string& path, pid_t parent) {
+    prctl(PR_SET_PDEATHSIG, SIGKILL);
+    if (getppid() != parent) {
+        _exit(4);
+    }
     BswOptions options;
     options.syncOnCommit = false;
     BswScratch scratch;
@@ -115,6 +120,7 @@ void expectModel(BswRegion& region, const Model& model, BswScratch& scratch) {
 
 TEST_CASE("bsw survives a process killed at random points of its commits") {
     const std::string path = fresh("crash");
+    const pid_t parent = getpid();
     BswScratch scratch;
     std::mt19937 random{12345};
     std::uint64_t previous = 0;
@@ -123,7 +129,7 @@ TEST_CASE("bsw survives a process killed at random points of its commits") {
         const pid_t child = fork();
         REQUIRE(child >= 0);
         if (child == 0) {
-            childLoop(path);
+            childLoop(path, parent);
         }
         timespec pause{0, static_cast<long>(random() % 6'000'000)};
         nanosleep(&pause, nullptr);
