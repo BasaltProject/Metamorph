@@ -693,18 +693,19 @@ bool BswRegion::compact(BswScratch& scratch) {
     }
     const std::unique_lock lock{s.indexMutex};
     s.unmap();
+    bswio::closeFile(s.fd);
+    s.fd = -1;
     std::filesystem::rename(temporary, s.path, error);
     if (error) {
+        s.fd = bswio::openExisting(s.path);
         s.remap();
         return false;
     }
     syncDirectory(s.path);
-    const int reopened = bswio::openExisting(s.path);
-    if (reopened < 0) {
+    s.fd = bswio::openExisting(s.path);
+    if (s.fd < 0) {
         return false;
     }
-    bswio::closeFile(s.fd);
-    s.fd = reopened;
     s.entries = fresh.entries;
     s.generation += 1;
     s.dataEnd = cursor;
