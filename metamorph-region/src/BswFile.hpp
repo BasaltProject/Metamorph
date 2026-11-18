@@ -83,7 +83,7 @@ inline std::int64_t writeAt(int fd, const void* from, std::size_t size, std::uin
 
 inline bool flush(int fd) { return _commit(fd) == 0; }
 
-inline bool truncateTo(int fd, std::uint64_t size) { return _chsize_s(fd, static_cast<__int64>(size)) == 0; }
+inline bool truncateTo(int fd, std::uint64_t size) { return _chsize_s(fd, static_cast<long long>(size)) == 0; }
 
 inline std::int64_t sizeOf(int fd) {
     LARGE_INTEGER size{};
