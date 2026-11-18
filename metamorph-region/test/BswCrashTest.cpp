@@ -59,7 +59,7 @@ struct Step {
     return step;
 }
 
-void apply(Model& model, const Step& step) {
+void applyStep(Model& model, const Step& step) {
     for (const BswPut& put : step.puts) {
         if (put.nbt.empty()) {
             model.erase({put.localX, put.localZ});
@@ -150,7 +150,7 @@ TEST_CASE("bsw survives a process killed at random points of its commits") {
         Model model;
         for (std::uint64_t at = 1; at < generation; ++at) {
             if (!compactsAt(at)) {
-                apply(model, stepFor(at));
+                applyStep(model, stepFor(at));
             }
         }
         expectModel(*region, model, scratch);
@@ -180,7 +180,7 @@ TEST_CASE("bsw opens as the old or the new state when the newest index slot is t
                 region = BswRegion::open(path, options, false);
             }
             REQUIRE(region->write(step.puts, scratch));
-            apply(newModel, step);
+            applyStep(newModel, step);
         }
         newest = region->stats().generation;
     }
@@ -249,7 +249,7 @@ TEST_CASE("bsw reuses freed space and compaction keeps every chunk") {
     for (std::uint64_t generation = 1; generation <= 200; ++generation) {
         const Step step = stepFor(generation * 3 + 1);
         REQUIRE(region->write(step.puts, scratch));
-        apply(model, step);
+        applyStep(model, step);
     }
     expectModel(*region, model, scratch);
     const BswStats before = region->stats();
