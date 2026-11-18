@@ -25,7 +25,7 @@
 Metamorph reads a Minecraft Java Edition world and writes it back in another shape, without touching the original:
 
 - **Between region formats:** Anvil (`.mca`), Linear (`.linear`) and Basalt's own bsw (`.bsw`), the default for new
-  Basalt Server worlds. The command line converts between Anvil and Linear; the library reads and writes all three.
+  Basalt Server worlds. Each chunk is checked after converting.
 - **Between versions:** every chunk and entity file from an older game is brought to the current world version, with
   the same fixes the official game applies when it opens an old world.
 
@@ -35,7 +35,7 @@ worlds on load, as a git submodule.
 ## Usage
 
 ```
-metamorph convert <world> --to anvil|linear [-o <out>]
+metamorph convert <world> --to anvil|linear|bsw [-o <out>]
 metamorph upgrade <world> [-o <out>]
 ```
 
