@@ -36,15 +36,17 @@ target_compile_definitions(metamorph-region-bsw-test
     PRIVATE BASALT_TEST_SCRATCH_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-data"
 )
 
-basalt_test(metamorph-region-bsw-crash-test
-    SOURCES
-        test/BswCrashTest.cpp
-    DEPENDS basalt::metamorph-region
-)
+if(CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
+    basalt_test(metamorph-region-bsw-crash-test
+        SOURCES
+            test/BswCrashTest.cpp
+        DEPENDS basalt::metamorph-region
+    )
 
-target_compile_definitions(metamorph-region-bsw-crash-test
-    PRIVATE BASALT_TEST_SCRATCH_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-data"
-)
+    target_compile_definitions(metamorph-region-bsw-crash-test
+        PRIVATE BASALT_TEST_SCRATCH_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-data"
+    )
+endif()
 
 basalt_test(metamorph-region-chunk-blob-test
     SOURCES

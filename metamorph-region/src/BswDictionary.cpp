@@ -1,11 +1,10 @@
+#include "BswFile.hpp"
 #include "BswInternal.hpp"
 
-#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <system_error>
-#include <unistd.h>
 #include <zdict.h>
 
 namespace basalt::metamorph::region {
@@ -56,19 +55,19 @@ std::shared_ptr<const BswDictionary> BswDictionary::load(const std::string& path
 
 bool BswDictionary::save(const std::string& path) const {
     const std::string temporary = path + ".tmp";
-    const int fd = ::open(temporary.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    const int fd = bswio::openNew(temporary);
     if (fd < 0) {
         return false;
     }
     std::size_t done = 0;
     bool ok = true;
     while (ok && done < bytes_.size()) {
-        const ssize_t put = ::write(fd, bytes_.data() + done, bytes_.size() - done);
+        const std::int64_t put = bswio::writeAt(fd, bytes_.data() + done, bytes_.size() - done, done);
         ok = put > 0;
         done += ok ? static_cast<std::size_t>(put) : 0;
     }
-    ok = ok && ::fdatasync(fd) == 0;
-    ::close(fd);
+    ok = ok && bswio::flush(fd);
+    bswio::closeFile(fd);
     std::error_code error;
     if (ok) {
         std::filesystem::rename(temporary, path, error);

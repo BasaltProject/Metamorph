@@ -1,3 +1,4 @@
+#include "BswFile.hpp"
 #include "BswInternal.hpp"
 
 #include <basalt/metamorph/region/BswRegion.hpp>
@@ -7,14 +8,10 @@
 #include <bit>
 #include <cerrno>
 #include <cstring>
-#include <fcntl.h>
 #include <filesystem>
 #include <map>
 #include <shared_mutex>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <system_error>
-#include <unistd.h>
 #include <utility>
 #include <zstd.h>
 
@@ -99,7 +96,7 @@ void encodeEntry(std::uint8_t* at, const Entry& e) {
 bool preadFully(int fd, std::uint8_t* into, std::size_t size, std::uint64_t offset) {
     std::size_t done = 0;
     while (done < size) {
-        const ssize_t got = ::pread(fd, into + done, size - done, static_cast<off_t>(offset + done));
+        const std::int64_t got = bswio::readAt(fd, into + done, size - done, offset + done);
         if (got <= 0) {
             if (got < 0 && errno == EINTR) {
                 continue;
@@ -114,7 +111,7 @@ bool preadFully(int fd, std::uint8_t* into, std::size_t size, std::uint64_t offs
 bool pwriteFully(int fd, const std::uint8_t* from, std::size_t size, std::uint64_t offset) {
     std::size_t done = 0;
     while (done < size) {
-        const ssize_t put = ::pwrite(fd, from + done, size - done, static_cast<off_t>(offset + done));
+        const std::int64_t put = bswio::writeAt(fd, from + done, size - done, offset + done);
         if (put <= 0) {
             if (put < 0 && errno == EINTR) {
                 continue;
@@ -164,12 +161,7 @@ __attribute__((target("sse4.2"))) std::uint32_t crc32cHardware(const std::uint8_
 }
 
 void syncDirectory(const std::string& path) {
-    const std::string parent = std::filesystem::path{path}.parent_path().string();
-    const int fd = ::open(parent.empty() ? "." : parent.c_str(), O_RDONLY | O_DIRECTORY);
-    if (fd >= 0) {
-        ::fdatasync(fd);
-        ::close(fd);
-    }
+    bswio::syncDirectory(std::filesystem::path{path}.parent_path().string());
 }
 
 struct Extent {
@@ -223,13 +215,13 @@ struct BswRegion::State {
     ~State() {
         unmap();
         if (fd >= 0) {
-            ::close(fd);
+            bswio::closeFile(fd);
         }
     }
 
     void unmap() {
         if (map != nullptr) {
-            ::munmap(const_cast<std::uint8_t*>(map), mapSize);
+            bswio::unmap(map, mapSize);
             map = nullptr;
             mapSize = 0;
         }
@@ -239,16 +231,13 @@ struct BswRegion::State {
         if (!options.mapReads) {
             return;
         }
-        struct stat info{};
-        if (::fstat(fd, &info) != 0 || static_cast<std::uint64_t>(info.st_size) <= mapSize) {
+        const std::int64_t size = bswio::sizeOf(fd);
+        if (size < 0 || static_cast<std::uint64_t>(size) <= mapSize) {
             return;
         }
         unmap();
-        void* at = ::mmap(nullptr, static_cast<std::size_t>(info.st_size), PROT_READ, MAP_SHARED, fd, 0);
-        if (at != MAP_FAILED) {
-            map = static_cast<const std::uint8_t*>(at);
-            mapSize = static_cast<std::size_t>(info.st_size);
-        }
+        map = bswio::mapReadOnly(fd, static_cast<std::size_t>(size));
+        mapSize = map != nullptr ? static_cast<std::size_t>(size) : 0;
     }
 
     [[nodiscard]] std::size_t unitsPerSide() const { return kDimension >> unitShift; }
@@ -289,7 +278,7 @@ struct BswRegion::State {
         if (!pwriteFully(fd, bytes.data(), bytes.size(), kSlotOffset[slot])) {
             return false;
         }
-        return !sync || ::fdatasync(fd) == 0;
+        return !sync || bswio::flush(fd);
     }
 
     struct UnitUpdate {
@@ -422,7 +411,7 @@ struct BswRegion::State {
             e.mask = update.mask;
             next[update.unit] = e;
         }
-        if (options.syncOnCommit && ::fdatasync(fd) != 0) {
+        if (options.syncOnCommit && !bswio::flush(fd)) {
             return false;
         }
         const int target = 1 - activeSlot;
@@ -454,7 +443,7 @@ std::unique_ptr<BswRegion> BswRegion::open(const std::string& path, const BswOpt
         return nullptr;
     }
     const std::string creating = path + ".new";
-    state->fd = ::open((exists ? path : creating).c_str(), O_RDWR | (exists ? 0 : O_CREAT | O_TRUNC), 0644);
+    state->fd = exists ? bswio::openExisting(path) : bswio::openNew(creating);
     if (state->fd < 0) {
         return nullptr;
     }
@@ -631,7 +620,7 @@ bool BswRegion::write(std::span<const BswPut> puts, BswScratch& scratch) {
     return s.commit(updates, s.options.codec, s.options.level, scratch);
 }
 
-bool BswRegion::sync() { return ::fdatasync(state_->fd) == 0; }
+bool BswRegion::sync() { return bswio::flush(state_->fd); }
 
 bool BswRegion::recompress(BswCodec codec, int level, BswScratch& scratch) {
     const std::lock_guard<std::mutex> writer{state_->writeMutex};
@@ -661,7 +650,7 @@ bool BswRegion::compact(BswScratch& scratch) {
     const std::lock_guard<std::mutex> writer{state_->writeMutex};
     State& s = *state_;
     const std::string temporary = s.path + ".tmp";
-    const int fd = ::open(temporary.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
+    const int fd = bswio::openNew(temporary);
     if (fd < 0) {
         return false;
     }
@@ -686,27 +675,28 @@ bool BswRegion::compact(BswScratch& scratch) {
     }
     ok = ok && fresh.writeSlot(0, s.generation + 1, cursor, fresh.entries, true);
     if (ok) {
-        ok = ::ftruncate(fd, static_cast<off_t>(cursor)) == 0 && ::fdatasync(fd) == 0;
+        ok = bswio::truncateTo(fd, cursor) && bswio::flush(fd);
     }
     fresh.fd = -1;
-    ::close(fd);
+    bswio::closeFile(fd);
     std::error_code error;
     if (!ok) {
         std::filesystem::remove(temporary, error);
         return false;
     }
+    const std::unique_lock lock{s.indexMutex};
+    s.unmap();
     std::filesystem::rename(temporary, s.path, error);
     if (error) {
+        s.remap();
         return false;
     }
     syncDirectory(s.path);
-    const int reopened = ::open(s.path.c_str(), O_RDWR);
+    const int reopened = bswio::openExisting(s.path);
     if (reopened < 0) {
         return false;
     }
-    const std::unique_lock lock{s.indexMutex};
-    s.unmap();
-    ::close(s.fd);
+    bswio::closeFile(s.fd);
     s.fd = reopened;
     s.entries = fresh.entries;
     s.generation += 1;
@@ -731,9 +721,8 @@ BswStats BswRegion::stats() const {
     const std::shared_lock lock{state_->indexMutex};
     BswStats out;
     out.generation = state_->generation;
-    struct stat info{};
-    if (::fstat(state_->fd, &info) == 0) {
-        out.fileBytes = static_cast<std::uint64_t>(info.st_size);
+    if (const std::int64_t size = bswio::sizeOf(state_->fd); size >= 0) {
+        out.fileBytes = static_cast<std::uint64_t>(size);
     }
     for (const Entry& e : state_->entries) {
         if (e.live()) {
