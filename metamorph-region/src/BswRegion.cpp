@@ -16,6 +16,7 @@
 #include <zstd.h>
 
 #if defined(__x86_64__)
+#include <cpuid.h>
 #include <nmmintrin.h>
 #endif
 
@@ -173,7 +174,13 @@ struct Extent {
 
 std::uint32_t crc32c(std::span<const std::uint8_t> bytes, std::uint32_t seed) noexcept {
 #if defined(__x86_64__)
-    static const bool hardware = __builtin_cpu_supports("sse4.2");
+    static const bool hardware = [] {
+        unsigned eax = 0;
+        unsigned ebx = 0;
+        unsigned ecx = 0;
+        unsigned edx = 0;
+        return __get_cpuid(1, &eax, &ebx, &ecx, &edx) != 0 && (ecx & bit_SSE4_2) != 0;
+    }();
     if (hardware) {
         return crc32cHardware(bytes.data(), bytes.size(), seed);
     }
